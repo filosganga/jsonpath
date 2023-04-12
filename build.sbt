@@ -32,6 +32,7 @@ lazy val core =
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
         "org.scalameta" %%% "munit" % munitV % Test,
+        "org.scalameta" %% "munit-scalacheck" % munitV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
@@ -57,7 +58,10 @@ lazy val circe =
       scalacOptions += "-Xsource:3",
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
+        "io.circe" %%% "circe-testing" % circeV % Test,
+        "io.circe" %%% "circe-literal" % circeV % Test,
         "org.scalameta" %%% "munit" % munitV % Test,
+        "org.scalameta" %% "munit-scalacheck" % munitV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
