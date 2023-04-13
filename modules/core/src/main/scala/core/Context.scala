@@ -1,8 +1,8 @@
 package com.filippodeluca.jsonpath
 package core
 
-import cats.parse._
-import cats.syntax.all._
+import cats.parse.*
+import cats.syntax.all.*
 
 sealed abstract trait ExpressionContext[T] {
   def root: T

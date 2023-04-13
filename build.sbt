@@ -16,16 +16,65 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
+ThisBuild / developers := List(
+  Developer(
+    id = "filosganga",
+    name = "Filippo De Luca",
+    email = "me@filippodeluca.com",
+    url = url("https://github.com/filosganga")
+  )
+)
+ThisBuild / licenses := List(License.Apache2)
+ThisBuild / startYear := Some(2023)
+ThisBuild / homepage := Some(url("https://github.com/filosganga/jsonpath"))
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/filosganga/jsonpath"),
+    "scm:git@github.com:filosganga/jsonpath.git"
+  )
+)
+
+lazy val noPublishSettings = List(
+  publish := {},
+  publishLocal := {},
+  publishTo := None,
+  publishArtifact := false
+)
+
+lazy val publishSettings = List(
+  pomIncludeRepository := { _ => false },
+  publishTo := {
+    val nexus = "https://s01.oss.sonatype.org/"
+    if (isSnapshot.value)
+      Some("snapshots" at nexus + "content/repositories/snapshots")
+    else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+  },
+  publishMavenStyle := true,
+  credentials ++= {
+    for {
+      usr <- sys.env.get("SONATYPE_USER")
+      password <- sys.env.get("SONATYPE_PASS")
+    } yield Credentials(
+      "Sonatype Nexus Repository Manager",
+      "s01.oss.sonatype.org",
+      usr,
+      password
+    )
+  }.toList
+)
+
 val scalacOptionsSettings = List(
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions += "-Xsource:3"
 )
 
-lazy val root = (project in file("."))
+lazy val root = project
+  .in(file("."))
   .settings(
     name := "jsonpath"
   )
   .aggregate(ast, parser, circe)
+  .settings(noPublishSettings)
 
 lazy val ast =
   project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
@@ -33,6 +82,7 @@ lazy val ast =
     .settings(
       name := "jsonpath-ast",
       scalacOptionsSettings,
+      publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-core" % catsV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -48,6 +98,7 @@ lazy val parser =
     .settings(
       name := "jsonpath-parser",
       scalacOptionsSettings,
+      publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -71,6 +122,7 @@ lazy val circe =
     .settings(
       name := "jsonpath-circe",
       scalacOptionsSettings,
+      publishSettings,
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
         "io.circe" %%% "circe-testing" % circeV % Test,

@@ -1,10 +1,10 @@
 package com.filippodeluca.jsonpath
 package core
 
-import cats.parse._
-import cats.syntax.all._
+import cats.parse.*
+import cats.syntax.all.*
 
-import Interpreter._
+import Interpreter.*
 
 object Interpreter {
   type Exp[T] = ExpressionContext[T] => ExpressionContext[T]
