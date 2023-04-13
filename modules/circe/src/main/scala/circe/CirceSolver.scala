@@ -74,6 +74,7 @@ object CirceSolver {
         Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))))
       case This => current
       case Root => Context.one(root)
+
       case Property(nameExp, parent) =>
         val targetCtx = loop(parent, current, root)
         val results = targetCtx.values.mapFilter { target =>

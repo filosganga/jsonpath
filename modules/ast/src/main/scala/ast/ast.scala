@@ -66,9 +66,9 @@ sealed trait Exp
   * @see
   *   https://cburgmer.github.io/json-path-comparison/results/array_slice_with_open_start_and_end.html
   */
-case class ArraySlice(start: Exp, end: Exp, step: Exp, parent: Exp) extends Exp
+case class ArraySlice(start: Exp, end: Exp, step: Exp, target: Exp) extends Exp
 
-case class ArrayIndex(index: Exp, parent: Exp) extends Exp
+case class ArrayIndex(index: Exp, target: Exp) extends Exp
 
 /** @see
   *   https://cburgmer.github.io/json-path-comparison/results/root.html
@@ -85,11 +85,11 @@ case class NumberLiteral(value: Double) extends Exp
 
 case class BooleanLiteral(value: Boolean) extends Exp
 
-case class Property(name: Exp, parent: Exp) extends Exp
+case class Property(name: Exp, target: Exp) extends Exp
 
 case class Wildcard(target: Exp) extends Exp
 
-case class Filter(predicate: Exp, parent: Exp) extends Exp
+case class Filter(predicate: Exp, target: Exp) extends Exp
 
 // *** Operator (shall them be not an expresion or a different one like filter?)
 case class Eq(left: Exp, right: Exp) extends Exp

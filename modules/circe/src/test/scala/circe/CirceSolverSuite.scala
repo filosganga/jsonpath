@@ -170,6 +170,8 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.fromInt(1)
   )
 
+  // Wildcard ***
+
   testSolve(
     Wildcard(Root),
     Json.arr(
@@ -217,6 +219,8 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.obj("b" -> Json.fromInt(2)),
     Json.obj("c" -> Json.fromInt(3))
   )
+
+  // ArrayIndex ***
 
   testSolve(
     ArrayIndex(
@@ -781,7 +785,7 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.True
   )
 
-  // Eq ***
+  // Not ***
 
   testSolve(
     Not(BooleanLiteral(true)),
@@ -800,6 +804,8 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.True,
     Json.False
   )
+
+  // Or ***
 
   testSolve(
     Or(BooleanLiteral(false), BooleanLiteral(false)),
@@ -825,6 +831,8 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.True
   )
 
+  // And ***
+
   testSolve(
     And(BooleanLiteral(false), BooleanLiteral(false)),
     Json.Null,
@@ -848,6 +856,8 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.Null,
     Json.True
   )
+
+  // In ***
 
   testSolve(
     In(StringLiteral("bar"), Root),
