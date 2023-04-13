@@ -1,5 +1,5 @@
 val circeV = "0.14.5"
-val catsParseV = "0.3.7"
+val catsParseV = "0.3.9"
 val catsV = "2.9.0"
 val catsEffectV = "3.4.8"
 val munitV = "1.0.0-M7"

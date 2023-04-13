@@ -23,6 +23,7 @@ import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
 
+// TODO implement ArrayIndex with negative numbers
 object CirceSolver {
 
   case class Context(values: Vector[Json]) {
@@ -38,10 +39,6 @@ object CirceSolver {
   }
 
   def solve(exp: ast.Exp, source: Json): Vector[Json] = {
-
-    // $.foo.bar
-
-    // solve(bar, solve("foo", solve($, current)))
 
     def stringValue(json: Json): Option[String] = {
       json.asString
@@ -165,7 +162,7 @@ object CirceSolver {
         }
         Context(results)
 
-      // TODO think about associativity
+      // TODO think about associativity and how to handle operators on multiple results
 
       case Eq(leftExp, rightExp) =>
         val result = for {

@@ -20,7 +20,9 @@ package parser
 import cats.parse.*
 import cats.syntax.all.*
 
-class JsonPathParser {
+import com.filippodeluca.jsonpath.ast.*
+
+object JsonPathParser {
 
   val dotP: Parser[Unit] = Parser.char('.')
   val openSquareBraceP: Parser[Unit] = Parser.char('[')
@@ -29,6 +31,7 @@ class JsonPathParser {
   val starP: Parser[Unit] = Parser.char('*')
   val equalP: Parser[Unit] = Parser.char('=')
   val bangP: Parser[Unit] = Parser.char('!')
+  val dashP: Parser[Unit] = Parser.char('-')
   val gtP = Parser.char('>')
   val ltP = Parser.char('<')
   val ampersandP = Parser.char('&')
@@ -41,151 +44,140 @@ class JsonPathParser {
   val singleQuoteP: Parser[Unit] = Parser.char('\'')
   val whitespaceP: Parser[Unit] = Parser.charIn(' ', '\t').void
   val whitespacesP: Parser[Unit] = whitespaceP.rep(1).void
+  val whitespacesP0: Parser0[Unit] = whitespaceP.rep0.void
 
-  val `[(` : Parser[Unit] =
-    openSquareBraceP *> whitespacesP.rep0 *> openParenP
-  val `[?(` =
-    openSquareBraceP *> whitespacesP.rep0 *> questionMarkP *> whitespacesP.rep0 *> openParenP
-  val `)]` = closeParenP *> whitespacesP.rep0 *> closeSquareBraceP
+  val stringLiteralP: Parser[StringLiteral] =
+    (singleQuoteP *> Parser.until(singleQuoteP) <* singleQuoteP).map(StringLiteral.apply)
 
-  // val equalOpP: Parser[Op[T]] =
-  //   (equalP *> equalP).withContext("equalOpP").as(interpreter.equalOp)
-  // val notEqualP: Parser[Op[T]] =
-  //   (bangP *> equalP).withContext("notEqualP").as(interpreter.notEqualOp)
-  // val andOpP: Parser[Op[T]] =
-  //   (ampersandP *> ampersandP).withContext("andOpP").as(interpreter.andOp)
-  // val orOpP: Parser[Op[T]] = (pipeP *> pipeP).withContext("orOpP").as(interpreter.orOp)
+  val numberLiteralP: Parser[NumberLiteral] = {
+    val zeroP = Parser.char('0').as(0)
+    val intP: Parser[Int] = zeroP | (Parser
+      .charWhere(c => c.isDigit && c != '0') ~ Parser
+      .charWhere(c => c.isDigit)
+      .rep0).map { case (h, t) =>
+      (h :: t).mkString.toInt
+    }
 
-  // TODO implement these operators
-  // val gtOpP: Parser[Op[T]] = gtP
-  // val ltOpP: Parser[Op[T]] = ltP
-  // val geOp: Parser[Op[T]] = gtP *> equalP
-  // val leOp: Parser[Op[T]] = ltP *> equalP
-  // val subsetofOpP: Parser[Op[T]] = Parser.string("subsetof")
-  // val containsOpP: Parser[Op[T]] = Parser.string("contains")
-  // val regexOpP: Parser[Op[T]] = Parser.string("~=")
+    (dashP.?.map(_.fold(1)(_ => -1)).with1 ~ intP ~ (dotP *> intP).?)
+      .map {
+        case ((factor, int), Some(decimal)) => s"$int.$decimal".toDouble * factor
+        case ((factor, int), None) => int.toDouble * factor
+      }
+      .map(NumberLiteral.apply)
+  }
 
-  // val inOpP: Parser[Op[T]] = Parser.string("in").withContext("inOpP")
-  //   .as(interpreter.inOp)
-  // val ninOpP: Parser[Op[T]] =
-  //   Parser.string("nin").withContext("ninOpP").as(interpreter.ninOp)
+  val booleanLiteralP: Parser[BooleanLiteral] =
+    (Parser.string("true").as(true) | Parser.string("false").as(false)).map(BooleanLiteral.apply)
 
-  // val sizeOpP: Parser[Op[T]] =
-  //   Parser.string("size").withContext("sizeOpP").as(interpreter.sizeOp)
+  val literalP: Parser[Exp] = stringLiteralP | booleanLiteralP | numberLiteralP
 
-  // val emptyOpP: Parser[Op[T]] =
-  //   Parser.string("empty").withContext("emptyOpP").as(interpreter.emptyOp)
+  val thisP: Parser[This.type] = atP.as(This)
+  val rootP: Parser[Root.type] = dollarP.as(Root)
 
-  // val opP = Parser
-  //   .oneOf(List(equalOpP, notEqualP, sizeOpP, emptyOpP, andOpP, orOpP))
-  //   .withContext("opP")
+  val unaryOpP: Parser[Exp => Exp] = {
+    val notOpP: Parser[Exp => Exp] = (bangP).as(exp => Not(exp))
 
-  // val notP = bangP.as(interpreter.notOp).withContext("notOp")
-  // val unaryOpP: Parser[UnaryOp[T]] = Parser.oneOf(notP :: Nil)
+    Parser.oneOf(notOpP :: Nil)
+  }
 
-  // val intP = (Parser.char('0').as(0) | (Parser
-  //   .charWhere(c => c.isDigit && c != '0') ~ Parser
-  //   .charWhere(c => c.isDigit)
-  //   .rep0)
-  //   .map { case (head, tail) =>
-  //     (head :: tail).toList.mkString.toInt
-  //   })
-  //   .withContext("intP")
+  val opP: Parser[(Exp, Exp) => Exp] = {
 
-  // val segmentP: Parser[String] =
-  //   (Parser.charWhere(c => c.isLetter | c == '_' | c == '-' | c == '&') ~ Parser
-  //     .charWhere(c => c.isLetterOrDigit | c == '_' | c == '-' | c == '&')
-  //     .rep0)
-  //     .map { case (h, tail) =>
-  //       (h :: tail).mkString
-  //     }
-  //     .withContext("segmentP")
+    val andOpP: Parser[(Exp, Exp) => Exp] = (ampersandP *> ampersandP).void.as(And(_, _))
+    val orOpP: Parser[(Exp, Exp) => Exp] = (pipeP *> pipeP).void.as(Or(_, _))
+    val eqOpP: Parser[(Exp, Exp) => Exp] = (equalP *> equalP).void.as(Eq(_, _))
+    val neqOpP: Parser[(Exp, Exp) => Exp] = (bangP *> equalP).void.as({ (l, r) => Not(Eq(l, r)) })
+    val gtOrGteOpP: Parser[(Exp, Exp) => Exp] = (gtP *> equalP.?).map { opt =>
+      opt.fold(Gt.apply)(_ => Gte.apply)
+    }
+    val ltOrLteOpP: Parser[(Exp, Exp) => Exp] = (ltP *> equalP.?).map { opt =>
+      opt.fold(Lt.apply)(_ => Lte.apply)
+    }
 
-  // val stringP = Parser
-  //   .until(singleQuoteP)
-  //   .surroundedBy(singleQuoteP)
-  //   .withContext("stringP")
+    Parser.oneOf(
+      List(
+        andOpP,
+        orOpP,
+        eqOpP,
+        neqOpP,
+        gtOrGteOpP,
+        ltOrLteOpP
+      )
+    )
+  }
 
-  // val booleanP =
-  //   (Parser.string("true").as(true) | Parser.string("false").as(false))
-  //     .withContext("booleanP")
+  val rootOrThis: Parser[Exp] = (thisP | rootP)
 
-  // lazy val thisP: Parser[Exp[T]] = atP.as(interpreter.thisExp)
+  val dotPropertyP: Parser[Exp => Exp] = {
 
-  // lazy val rootP: Parser[Exp[T]] = dollarP.as(interpreter.rootExp)
+    val segmentP: Parser[String] =
+      (Parser.charWhere(c => c.isLetter | c == '_' | c == '-' | c == '&') ~ Parser
+        .charWhere(c => c.isLetterOrDigit | c == '_' | c == '-' | c == '&')
+        .rep0)
+        .map { case (h, tail) =>
+          (h :: tail).mkString
+        }
+        .withContext("segmentP")
 
-  // lazy val pathP = ((thisP | rootP) ~ Parser
-  //   .recursive[Exp[T]] { p =>
-  //     (Parser.oneOf(
-  //       List(
-  //         (dotP *> segmentP).map(interpreter.propertyExp).withContext(".property"),
-  //         openSquareBraceP *> (
-  //           Parser.oneOf(
-  //             // TODO add *
-  //             // TODO add ..property
-  //             // TODO add [index1,index2,…]
-  //             // TODO add [start:]
-  //             // TODO add [start:end]
-  //             // TODO add [:n]
-  //             // TODO add [-n:]
-  //             List(
-  //               stringP.map(interpreter.propertyExp).withContext("['property']"),
-  //               intP.map(interpreter.nThArrayItemExp).withContext("[num]"),
-  //               (questionMarkP *> openParenP *> whitespaceP.rep0 *> Parser
-  //                 .defer(expP)
-  //                 .map(interpreter.filterExp) <* whitespaceP.rep0 <* closeParenP)
-  //                 .withContext("[?(filter)]"),
-  //               Parser.defer(expP).map(interpreter.propertyExp).withContext("[(exp)]")
-  //             )
-  //           )
-  //         ) <* closeSquareBraceP
-  //       )
-  //     ) ~ p.rep0).map { case (h, tail) =>
-  //       tail.foldLeft(h) { (s, x) => s.andThen(x) }
-  //     }
-  //   }
-  //   .?).map {
-  //   case (h, Some(t)) => h.andThen(t)
-  //   case (h, None) => h
-  // }
+    (dotP *> (starP
+      .as(Wildcard(_)) | segmentP.map(StringLiteral.apply).map(name => Property(name, _))))
+  }.withContext("dotPropertyP")
 
-  // lazy val expP: Parser[Exp[T]] = Parser.recursive[Exp[T]] { recurse =>
-  //   val intExpP = intP
-  //     .withContext("intP")
-  //     .map(_.toDouble)
-  //     .map(interpreter.numberExp)
+  val expP: Parser[Exp] = {
 
-  //   val stringExpP = stringP
-  //     .withContext("stringP")
-  //     .map(interpreter.stringExp)
+    val parensExpP =
+      (openParenP *> whitespaceP.rep0) *> Parser.defer(expP) <* (whitespaceP.rep0 <* closeParenP)
+        .withContext(
+          "parentsExpP"
+        )
 
-  //   val booleanExpP =
-  //     booleanP
-  //       .withContext("booleanP")
-  //       .map(interpreter.booleanExp)
+    val bracketsP: Parser[Exp => Exp] = {
 
-  //   val literalExp = Parser.oneOf(intExpP :: stringExpP :: booleanExpP :: Nil)
+      val arraySliceP: Parser[Exp => Exp] = {
+        val numberOrNull = numberLiteralP.?.map(_.getOrElse(NullLiteral))
+        val sliceSep = columnP.surroundedBy(whitespacesP0)
+        (numberOrNull.with1.soft ~ (sliceSep *> numberOrNull) ~ (sliceSep *> numberOrNull).?).map {
+          case ((start, end), step) => ArraySlice(start, end, step.getOrElse(NullLiteral), _)
+        }
+      }.withContext("arraySliceP")
 
-  //   val parentsExpP =
-  //     (openParenP *> whitespaceP.rep0) *> recurse <* (whitespaceP.rep0 <* closeParenP)
-  //       .withContext("parentsExpP")
+      (openSquareBraceP *> (
+        Parser.oneOf(
+          List(
+            starP.as(Wildcard(_)),
+            stringLiteralP.map(name => Property(name, _)),
+            arraySliceP,
+            numberLiteralP.map(index => ArrayIndex(index, _)),
+            parensExpP.map(name => Property(name, _))
+          )
+        )
+      ) <* closeSquareBraceP).withContext("bracketsP")
+    }
 
-  //   val unaryOpExpP =
-  //     ((unaryOpP <* whitespacesP.rep0) ~ (parentsExpP | pathP | literalExp))
-  //       .withContext("unaryOpExpP")
-  //       .map { case (op, value) =>
-  //         interpreter.unaryOpExp(op, value)
-  //       }
+    val selectorP: Parser[Exp] = literalP | (rootOrThis ~ (dotPropertyP | bracketsP).rep0)
+      .map {
+        case (target, xs) if xs.nonEmpty =>
+          xs.reduceRight[Exp => Exp] { (l, r) => r.compose(l) }(target)
+        case (target, _) =>
+          target
+      }
+      .withContext("selectorP")
 
-  //   val opExpP =
-  //     ((unaryOpExpP | parentsExpP | pathP | literalExp) ~ (whitespacesP *> opP <* whitespacesP) ~ recurse)
-  //       .withContext("opExpP")
-  //       .map { case ((l, op), r) =>
-  //         interpreter.opExp(op, l, r)
-  //       }
+    (Parser
+      .oneOf(
+        List(
+          (unaryOpP ~ (whitespacesP0 *> Parser.defer(expP))).map { (a, b) => a(b) },
+          literalP,
+          parensExpP,
+          selectorP
+        )
+      ) ~ (whitespacesP0 *> opP ~ (whitespacesP0 *> Parser.defer(expP))).?)
+      .map {
+        case (l, Some(op, r)) => op(l, r)
+        case (l, None) => l
+      }
+      .withContext("expP")
+  }
 
-  //   Parser.oneOf(
-  //     opExpP.backtrack :: unaryOpExpP :: parentsExpP :: pathP :: literalExp :: Nil
-  //   )
-  // }
+  def parse(str: String) = expP.parseAll(str)
+
 }
