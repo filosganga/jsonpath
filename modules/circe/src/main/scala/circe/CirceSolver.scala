@@ -1,12 +1,11 @@
+package com.filippodeluca.jsonpath
 package circe
 
-import cats.parse._
 import cats.syntax.all._
 
 import io.circe.Json
 
-import com.filippodeluca.jsonpath.core._
-import com.filippodeluca.jsonpath.core.ast._
+import com.filippodeluca.jsonpath.ast._
 
 object CirceSolver {
 
@@ -61,18 +60,25 @@ object CirceSolver {
       case Root => Context.one(root)
       case Property(nameExp, parent) =>
         val targetCtx = loop(parent, current, root)
-        Context(targetCtx.values.mapFilter { target =>
+        val results = targetCtx.values.mapFilter { target =>
           // TODO Fail if the value is an array
           val name = loop(nameExp, Context.one(target), root).value.flatMap(stringValue)
           name
             .flatMap { name =>
               target.asObject.flatMap(obj => obj(name))
             }
-        })
+        }
+        Context(results)
+      case Wildcard(target) =>
+        val results = loop(target, current, root).values.mapFilter { target =>
+          target.asArray.orElse(target.asObject.map(_.values.toVector))
+        }.flatten
+
+        Context(results)
 
       case ArrayIndex(indexExp, parentExp) =>
         val targetCtx = loop(parentExp, current, root)
-        Context(targetCtx.values.mapFilter { target =>
+        val results = targetCtx.values.mapFilter { target =>
           // TODO Fail if the value is an array
           val index = loop(indexExp, Context.one(target), root).value.flatMap(intValue)
           index
@@ -83,11 +89,12 @@ object CirceSolver {
                 }
             }
 
-        })
+        }
+        Context(results)
 
       case ArraySlice(startExp, endExp, stepExp, targetExp) =>
         val targetCtx = loop(targetExp, current, root)
-        Context(targetCtx.values.mapFilter { target =>
+        val results = targetCtx.values.mapFilter { target =>
           target.asArray.map { array =>
             val targetCtx = Context.one(target)
             val start = loop(startExp, targetCtx, root).value.flatMap(intValue)
@@ -101,7 +108,7 @@ object CirceSolver {
                   array.length
                 ) by step
             } else {
-              (start.map(x => if(x < 0) array.size + x else x ).getOrElse(array.size)) until end
+              (start.map(x => if (x < 0) array.size + x else x).getOrElse(array.size)) until end
                 .map(x => if (x < 0) array.size + x else x)
                 .getOrElse(-1) by step
             }
@@ -116,11 +123,13 @@ object CirceSolver {
               value
             })
           }
-        })
+        }
+
+        Context(results)
 
       case Filter(predicate, parent) =>
         val targetCtx = loop(parent, current, root)
-        Context(targetCtx.values.flatMap { target =>
+        val results = targetCtx.values.flatMap { target =>
           target.asArray.fold {
             // TODO Fail if the value is an array
             val predicateValue =
@@ -136,13 +145,97 @@ object CirceSolver {
               loop(predicate, Context.one(item), root).value.map(booleanValue).getOrElse(false)
             }
           }
-        })
+        }
+        Context(results)
+
+      // TODO think about associativity
 
       case Eq(leftExp, rightExp) =>
-        Context.one((for {
+        val result = for {
           left <- loop(leftExp, current, root).value
           right <- loop(rightExp, current, root).value
-        } yield left == right).fold(Json.False)(Json.fromBoolean))
+        } yield left == right
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case Gt(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value
+          right <- loop(rightExp, current, root).value
+        } yield {
+          left.asString.exists(l => right.asString.exists(r => l > r)) ||
+          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble > r.toDouble))
+        }
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case Gte(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value
+          right <- loop(rightExp, current, root).value
+        } yield {
+          left.asString.exists(l => right.asString.exists(r => l > r)) ||
+          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble >= r.toDouble))
+        }
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case Lt(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value
+          right <- loop(rightExp, current, root).value
+        } yield {
+          left.asString.exists(l => right.asString.exists(r => l > r)) ||
+          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble < r.toDouble))
+        }
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case Lte(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value
+          right <- loop(rightExp, current, root).value
+        } yield {
+          left.asString.exists(l => right.asString.exists(r => l > r)) ||
+          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble <= r.toDouble))
+        }
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case Not(exp) =>
+        val result = for {
+          value <- loop(exp, current, root).value.map(booleanValue)
+        } yield Json.fromBoolean(!value)
+
+        Context(result.toVector)
+
+      case Or(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value.map(booleanValue)
+          right <- loop(rightExp, current, root).value.map(booleanValue)
+        } yield left || right
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case And(leftExp, rightExp) =>
+        val result = for {
+          left <- loop(leftExp, current, root).value.map(booleanValue)
+          right <- loop(rightExp, current, root).value.map(booleanValue)
+        } yield left && right
+
+        Context.one(result.fold(Json.False)(Json.fromBoolean))
+
+      case In(itemExp, setExp) =>
+        val result = for {
+          set <- loop(setExp, current, root).value
+          item <- loop(itemExp, current, root).value
+        } yield {
+          set.asArray.exists(_.contains(item)) ||
+          item.asString.exists(key => set.asObject.exists(jso => jso.contains(key)))
+        }
+
+        Context(result.map(Json.fromBoolean).toVector)
+
     }
 
     loop(exp, Context.one(source), source).values

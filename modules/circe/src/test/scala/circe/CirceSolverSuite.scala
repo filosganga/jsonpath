@@ -1,9 +1,12 @@
+package com.filippodeluca.jsonpath
 package circe
+
+import cats.syntax.all.*
 
 import io.circe.Json
 import io.circe.literal.*
 import io.circe.testing.instances.*
-import com.filippodeluca.jsonpath.core.ast.*
+import com.filippodeluca.jsonpath.ast.*
 
 import org.scalacheck.Prop._
 
@@ -11,27 +14,41 @@ import circe.CirceSolver
 
 class CirceSolverSuite extends munit.ScalaCheckSuite {
 
-  import CirceSolver._
+  import CirceSolver.*
 
-  test("solve string literal should return the string literal") {
+  def testSolve(exp: Exp, source: Json, expecteds: Json*)(implicit loc: munit.Location) = {
+    test(show"""solve ${exp} on ${source.noSpaces} should return ${expecteds
+        .map(_.noSpaces)
+        .mkString("[", ",", "]")}""") {
+      assertEquals(solve(exp, source), expecteds.toVector)
+    }
+  }
+
+  test("solve string literal on arbitray json should return the string literal") {
     forAll { (str: String, json: Json) =>
       assertEquals(solve(StringLiteral(str), json), Vector(Json.fromString(str)))
     }
   }
 
-  test("solve boolean literal should return the boolean literal") {
+  test("solve boolean literal on arbitray json should return the boolean literal") {
     forAll { (bool: Boolean, json: Json) =>
       assertEquals(solve(BooleanLiteral(bool), json), Vector(Json.fromBoolean(bool)))
     }
   }
 
-  test("solve this should return the source") {
+  test("""solve @ on {"foo": "bar"} should return the [{"foo": "bar"}]""") {
     forAll { (json: Json) =>
       assertEquals(solve(This, json), Vector(json))
     }
   }
 
-  test("solve a property should return the property value") {
+  test("""solve $ on {"foo": "bar"} should return the [{"foo": "bar"}]""") {
+    forAll { (json: Json) =>
+      assertEquals(solve(Root, json), Vector(json))
+    }
+  }
+
+  test("""solve @.property on {"property": "value") should return ["value"]""") {
     forAllNoShrink { (name: String, value: Json) =>
       assertEquals(
         solve(Property(StringLiteral(name), This), Json.obj(name -> value)),
@@ -40,14 +57,14 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     }
   }
 
-  test("solve a non-existant property should return Json.Nul") {
+  test("""solve @.foo on {"bar": "value") should return []""") {
     forAll { (name: String, current: Json) =>
       val jsonWithoutProperty = current.mapObject(_.filterKeys(_ != name))
       assertEquals(solve(Property(StringLiteral(name), This), jsonWithoutProperty), Vector.empty)
     }
   }
 
-  test("solve a nested property should return the property value") {
+  test("""solve @.foo.bar on {"foo":{"bar": "value"}) should return ["value"]""") {
     forAll { (parentName: String, name: String, value: Json) =>
       val jsonObj = Json.obj(parentName -> Json.obj(name -> value))
       val exp = Property(StringLiteral(name), Property(StringLiteral(parentName), This))
@@ -55,7 +72,7 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     }
   }
 
-  test("solve a non-existant nested property should return Json.Null") {
+  test("""solve @.foo.bar on {"foo":{"baz": "value"}) should return []""") {
     forAll { (parentName: String, name: String, current: Json) =>
       val source = current.mapObject(_.filterKeys(_ != name))
       val exp = Property(StringLiteral(name), Property(StringLiteral(parentName), This))
@@ -63,7 +80,7 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     }
   }
 
-  test("solve array index should retun the array item") {
+  test("solve @[3] on [0,1,2] should retun [2]") {
     forAll { (value: Json, otherValue: Json) =>
       val current = Json.arr(otherValue, value, otherValue)
       val exp = ArrayIndex(NumberLiteral(1), This)
@@ -71,21 +88,32 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     }
   }
 
-  test("solve $.foo[1] should retun 2") {
-    val source = Json.obj(
+  test("solve @[3] on [0,1] should retun []") {
+    forAll { (otherValue: Json) =>
+      val current = Json.arr(otherValue, otherValue)
+      val exp = ArrayIndex(NumberLiteral(3), This)
+      assertEquals(solve(exp, current), Vector.empty)
+    }
+  }
+
+  testSolve(
+    ArrayIndex(NumberLiteral(1), Property(StringLiteral("foo"), This)),
+    Json.obj(
       "foo" -> Json.arr(
         Json.fromInt(1),
         Json.fromInt(2),
         Json.fromInt(3)
       )
-    )
+    ),
+    Json.fromInt(2)
+  )
 
-    val exp = ArrayIndex(NumberLiteral(1), Property(StringLiteral("foo"), This))
-    assertEquals(solve(exp, source), Vector(Json.fromInt(2)))
-  }
-
-  test("solve $.foo.bar[2] should retun 3") {
-    val source = Json.obj(
+  testSolve(
+    ArrayIndex(
+      NumberLiteral(1),
+      Property(StringLiteral("bar"), Property(StringLiteral("foo"), This))
+    ),
+    Json.obj(
       "foo" -> Json.obj(
         "bar" -> Json.arr(
           Json.fromInt(1),
@@ -93,49 +121,94 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
           Json.fromInt(3)
         )
       )
-    )
+    ),
+    Json.fromInt(2)
+  )
 
-    val exp = ArrayIndex(
+  testSolve(
+    Property(
+      StringLiteral("bar"),
+      ArrayIndex(NumberLiteral(0), Property(StringLiteral("foo"), This))
+    ),
+    Json.obj(
+      "foo" -> Json.arr(
+        Json.obj("bar" -> Json.fromInt(1)),
+        Json.obj("bar" -> Json.fromInt(2)),
+        Json.obj("bar" -> Json.fromInt(3))
+      )
+    ),
+    Json.fromInt(1)
+  )
+
+  testSolve(
+    Property(
+      StringLiteral("bar"),
+      ArrayIndex(NumberLiteral(0), Property(StringLiteral("foo"), This))
+    ),
+    Json.obj(
+      "foo" -> Json.arr(
+        Json.obj("bar" -> Json.fromInt(1)),
+        Json.obj("bar" -> Json.fromInt(2)),
+        Json.obj("bar" -> Json.fromInt(3))
+      )
+    ),
+    Json.fromInt(1)
+  )
+
+  testSolve(
+    Wildcard(Root),
+    Json.arr(
+      Json.fromInt(1),
+      Json.fromInt(2),
+      Json.fromInt(3)
+    ),
+    Json.fromInt(1),
+    Json.fromInt(2),
+    Json.fromInt(3)
+  )
+
+  testSolve(
+    Wildcard(Root),
+    Json.arr(
+      Json.obj("a" -> Json.fromInt(1)),
+      Json.obj("b" -> Json.fromInt(2)),
+      Json.obj("c" -> Json.fromInt(3))
+    ),
+    Json.obj("a" -> Json.fromInt(1)),
+    Json.obj("b" -> Json.fromInt(2)),
+    Json.obj("c" -> Json.fromInt(3))
+  )
+
+  testSolve(
+    Wildcard(Root),
+    Json.obj(
+      "foo" -> Json.fromString("fooValue"),
+      "bar" -> Json.fromString("barValue"),
+      "baz" -> Json.fromString("bazValue")
+    ),
+    Json.fromString("fooValue"),
+    Json.fromString("barValue"),
+    Json.fromString("bazValue")
+  )
+
+  testSolve(
+    Wildcard(Root),
+    Json.obj(
+      "foo" -> Json.obj("a" -> Json.fromInt(1)),
+      "bar" -> Json.obj("b" -> Json.fromInt(2)),
+      "baz" -> Json.obj("c" -> Json.fromInt(3))
+    ),
+    Json.obj("a" -> Json.fromInt(1)),
+    Json.obj("b" -> Json.fromInt(2)),
+    Json.obj("c" -> Json.fromInt(3))
+  )
+
+  testSolve(
+    ArrayIndex(
       NumberLiteral(1),
-      Property(StringLiteral("bar"), Property(StringLiteral("foo"), This))
-    )
-    assertEquals(solve(exp, source), Vector(Json.fromInt(2)))
-  }
-
-  test("solve $.foo[0].bar should retun 1") {
-    val source = Json.obj(
-      "foo" -> Json.arr(
-        Json.obj("bar" -> Json.fromInt(1)),
-        Json.obj("bar" -> Json.fromInt(2)),
-        Json.obj("bar" -> Json.fromInt(3))
-      )
-    )
-
-    val exp = Property(
-      StringLiteral("bar"),
-      ArrayIndex(NumberLiteral(0), Property(StringLiteral("foo"), This))
-    )
-    assertEquals(solve(exp, source), Vector(Json.fromInt(1)))
-  }
-
-  test("solve $.foo[0].bar should retun 1") {
-    val source = Json.obj(
-      "foo" -> Json.arr(
-        Json.obj("bar" -> Json.fromInt(1)),
-        Json.obj("bar" -> Json.fromInt(2)),
-        Json.obj("bar" -> Json.fromInt(3))
-      )
-    )
-
-    val exp = Property(
-      StringLiteral("bar"),
-      ArrayIndex(NumberLiteral(0), Property(StringLiteral("foo"), This))
-    )
-    assertEquals(solve(exp, source), Vector(Json.fromInt(1)))
-  }
-
-  test("solve $.foo.[(@.arrName)][2] should retun 3") {
-    val source = Json.obj(
+      Property(Property(StringLiteral("arrName"), This), Property(StringLiteral("foo"), This))
+    ),
+    Json.obj(
       "foo" -> Json.obj(
         "arrName" -> Json.fromString("bar"),
         "bar" -> Json.arr(
@@ -144,17 +217,16 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
           Json.fromInt(3)
         )
       )
-    )
+    ),
+    Json.fromInt(2)
+  )
 
-    val exp = ArrayIndex(
-      NumberLiteral(1),
-      Property(Property(StringLiteral("arrName"), This), Property(StringLiteral("foo"), This))
-    )
-    assertEquals(solve(exp, source), Vector(Json.fromInt(2)))
-  }
-
-  test("solve $.foo.bar[($.foo.barindex)] should retun 3") {
-    val source = Json.obj(
+  testSolve(
+    ArrayIndex(
+      Property(StringLiteral("barIndex"), Property(StringLiteral("foo"), Root)),
+      Property(StringLiteral("bar"), Property(StringLiteral("foo"), Root))
+    ),
+    Json.obj(
       "foo" -> Json.obj(
         "barIndex" -> Json.fromInt(2),
         "bar" -> Json.arr(
@@ -163,77 +235,60 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
           Json.fromInt(3)
         )
       )
-    )
+    ),
+    Json.fromInt(3)
+  )
 
-    val exp = ArrayIndex(
-      Property(StringLiteral("barIndex"), Property(StringLiteral("foo"), Root)),
-      Property(StringLiteral("bar"), Property(StringLiteral("foo"), Root))
-    )
-    assertEquals(solve(exp, source), Vector(Json.fromInt(3)))
-  }
-
-  test("solve $.foo[?(@.enabled)] should retun Null") {
-    val source = Json.obj(
+  testSolve(
+    Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root)),
+    Json.obj(
       "foo" -> Json.obj(
         "enabled" -> Json.fromBoolean(false),
         "bar" -> Json.fromString("Baz")
       )
     )
+  )
 
-    val exp = Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root))
-    assertEquals(solve(exp, source), Vector.empty)
-  }
-
-  test("solve $.foo[?(@.enabled)] should retun foo") {
-
-    val foo = Json.obj(
+  testSolve(
+    Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root)),
+    Json.obj(
+      "foo" -> Json.obj(
+        "enabled" -> Json.fromBoolean(true),
+        "bar" -> Json.fromString("Baz")
+      )
+    ),
+    Json.obj(
       "enabled" -> Json.fromBoolean(true),
       "bar" -> Json.fromString("Baz")
     )
+  )
 
-    val source = Json.obj(
-      "foo" -> foo
-    )
-
-    val exp = Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root))
-    assertEquals(solve(exp, source), Vector(foo))
-  }
-
-  test("solve $.foo[?(@.enabled)] should return matching items") {
-    val source = Json.obj(
+  testSolve(
+    Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root)),
+    Json.obj(
       "foo" -> Json.obj(
         "enabled" -> Json.fromBoolean(false),
         "bar" -> Json.fromString("Baz")
       )
     )
+  )
 
-    val exp = Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root))
-    assertEquals(solve(exp, source), Vector.empty)
-  }
-
-  test("solve $.foo[?(@.enabled == true)] should return matching items") {
-    val source = Json.obj(
-      "foo" -> Json.obj(
-        "enabled" -> Json.fromBoolean(false),
-        "bar" -> Json.fromString("Baz")
-      )
-    )
-
-    val exp = Filter(
+  testSolve(
+    Filter(
       Eq(Property(StringLiteral("enabled"), This), BooleanLiteral(true)),
       Property(StringLiteral("foo"), Root)
+    ),
+    Json.obj(
+      "foo" -> Json.obj(
+        "enabled" -> Json.fromBoolean(false),
+        "bar" -> Json.fromString("Baz")
+      )
     )
-    assertEquals(solve(exp, source), Vector.empty)
-  }
+  )
 
-  test("solve $.foo[?(@.enabled)] should return all the array elements") {
-
-    val expected = Json.obj(
-      "enabled" -> Json.fromBoolean(true),
-      "bar" -> Json.fromString("Bazzinga")
-    )
-
-    val source = Json.obj(
+  testSolve(
+    Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root)),
+    Json.obj(
       "foo" -> Json.arr(
         Json.obj(
           "enabled" -> Json.fromBoolean(false),
@@ -244,18 +299,16 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
           "bar" -> Json.fromString("Bazzinga")
         )
       )
+    ),
+    Json.obj(
+      "enabled" -> Json.fromBoolean(true),
+      "bar" -> Json.fromString("Bazzinga")
     )
+  )
 
-    val exp = Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root))
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("solve $.foo[?(@.enabled)].bar should return Bazzinga") {
-
-    val expected = Json.fromString("Bazzinga")
-
-    val source = Json.obj(
+  testSolve(
+    Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root)),
+    Json.obj(
       "foo" -> Json.arr(
         Json.obj(
           "enabled" -> Json.fromBoolean(false),
@@ -263,334 +316,545 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
         ),
         Json.obj(
           "enabled" -> Json.fromBoolean(true),
-          "bar" -> expected
+          "bar" -> Json.fromString("Bazzinga")
         )
       )
+    ),
+    Json.obj(
+      "enabled" -> Json.fromBoolean(true),
+      "bar" -> Json.fromString("Bazzinga")
     )
+  )
 
-    val exp = Property(
-      StringLiteral("bar"),
-      Filter(Property(StringLiteral("enabled"), This), Property(StringLiteral("foo"), Root))
-    )
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("$ == 'foo' should return true") {
-
-    val source = Json.fromString("foo")
-
-    val exp = Eq(This, StringLiteral("foo"))
-
-    assertEquals(solve(exp, source), Vector(Json.True))
-  }
-
-  test("$ == 'bar' should return false") {
-
-    val source = Json.fromString("foo")
-
-    val exp = Eq(This, StringLiteral("bar"))
-
-    assertEquals(solve(exp, source), Vector(Json.False))
-  }
-
-  test("[1::] on [0,1,2,3,4,5] should return [1,2,3,4,5]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(1), NullLiteral, NullLiteral, Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(1), NullLiteral, NullLiteral, Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[:3:] on [0,1,2,3,4,5] should return [0,1,2]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NullLiteral, NumberLiteral(3), NullLiteral, Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2)
     )
+  )
 
-    val exp = ArraySlice(NullLiteral, NumberLiteral(3), NullLiteral, Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[1:3:] on [0,1,2,3,4,5] should return [1,2]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(1), NumberLiteral(3), NullLiteral, Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(1),
       Json.fromInt(2)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(1), NumberLiteral(3), NullLiteral, Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[1:4:2] on [0,1,2,3,4,5] should return [1,3]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(1), NumberLiteral(4), NumberLiteral(2), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(1),
       Json.fromInt(3)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(1), NumberLiteral(4), NumberLiteral(2), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[-1] on [0,1,2,3,4,5] should return [5]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(-1), NullLiteral, NullLiteral, Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(5)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(-1), NullLiteral, NullLiteral, Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[-3:-1] on [0,1,2,3,4,5] should return [3,4]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(-3), NumberLiteral(-1), NullLiteral, Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(3),
       Json.fromInt(4)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(-3), NumberLiteral(-1), NullLiteral, Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[3::-1] on [0,1,2,3,4,5] should return [3,2,1,0]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(3), NullLiteral, NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(3),
       Json.fromInt(2),
       Json.fromInt(1),
       Json.fromInt(0)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(3), NullLiteral, NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[-2::-1] on [0,1,2,3,4,5] should return [4, 3,2,1,0]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(-2), NullLiteral, NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(4),
       Json.fromInt(3),
       Json.fromInt(2),
       Json.fromInt(1),
       Json.fromInt(0)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(-2), NullLiteral, NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[:-4:-1] on [0,1,2,3,4,5] should return [3,2,1,0]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NullLiteral, NumberLiteral(-4), NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(5),
       Json.fromInt(4),
       Json.fromInt(3)
     )
+  )
 
-    val exp = ArraySlice(NullLiteral, NumberLiteral(-4), NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[:3:-1] on [0,1,2,3,4,5] should return [5,4]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NullLiteral, NumberLiteral(3), NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(5),
       Json.fromInt(4)
     )
+  )
 
-    val exp = ArraySlice(NullLiteral, NumberLiteral(3), NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[4:3:-1] on [0,1,2,3,4,5] should return [5,4]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(4), NumberLiteral(3), NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(4)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(4), NumberLiteral(3), NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[-2:-4:-1] on [0,1,2,3,4,5] should return [4,3]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NumberLiteral(-2), NumberLiteral(-4), NumberLiteral(-1), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(4),
       Json.fromInt(3)
     )
+  )
 
-    val exp = ArraySlice(NumberLiteral(-2), NumberLiteral(-4), NumberLiteral(-1), Root)
-
-    assertEquals(solve(exp, source), Vector(expected))
-  }
-
-  test("[::-2] on [0,1,2,3,4,5] should return [4,2,0]") {
-
-    val source = Json.arr(
+  testSolve(
+    ArraySlice(NullLiteral, NullLiteral, NumberLiteral(-2), Root),
+    Json.arr(
       Json.fromInt(0),
       Json.fromInt(1),
       Json.fromInt(2),
       Json.fromInt(3),
       Json.fromInt(4),
       Json.fromInt(5)
-    )
-
-    val expected = Json.arr(
+    ),
+    Json.arr(
       Json.fromInt(4),
       Json.fromInt(2),
       Json.fromInt(0)
     )
+  )
 
-    val exp = ArraySlice(NullLiteral, NullLiteral, NumberLiteral(-2), Root)
+  // Eq ***
 
-    assertEquals(solve(exp, source), Vector(expected))
-  }
+  testSolve(
+    Eq(StringLiteral("foo"), StringLiteral("foo")),
+    Json.Null,
+    Json.True
+  )
 
-//   numbers = arr.array('i', [0, 1, 2, 3, 4, 5])
+  testSolve(
+    Eq(NumberLiteral(3), NumberLiteral(3)),
+    Json.Null,
+    Json.True
+  )
 
-// copy = numbers[:-4:-1]
+  testSolve(
+    Eq(NumberLiteral(3), NumberLiteral(5)),
+    Json.Null,
+    Json.False
+  )
 
-  /*import array as arr
+  testSolve(
+    Eq(StringLiteral("3"), NumberLiteral(3)),
+    Json.Null,
+    Json.False
+  )
 
-numbers = arr.array('i', [1, 2, 3, 4, 5])
-copy = numbers[2::-1]
-array('i', [3, 2, 1])
+  testSolve(
+    Eq(This, NumberLiteral(3)),
+    Json.fromInt(3),
+    Json.True
+  )
 
-numbers = arr.array('i', [1, 2, 3, 4, 5])
-copy = numbers[-1::-1]
-array('i', [5, 4, 3, 2, 1])
+  testSolve(
+    Eq(This, StringLiteral("foo")),
+    Json.fromString("foo"),
+    Json.True
+  )
 
+  testSolve(
+    Eq(This, StringLiteral("bar")),
+    Json.fromString("foo"),
+    Json.False
+  )
 
+  testSolve(
+    Eq(Property(StringLiteral("foo"), Root), Property(StringLiteral("bar"), Root)),
+    Json.obj("foo" -> Json.fromInt(8), "bar" -> Json.fromInt(9)),
+    Json.False
+  )
 
-   */
+  testSolve(
+    Eq(Property(StringLiteral("foo"), Root), Property(StringLiteral("bar"), Root)),
+    Json.obj("foo" -> Json.fromInt(8), "bar" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  // Gt ***
+
+  testSolve(
+    Gt(NumberLiteral(9), NumberLiteral(8)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Gt(NumberLiteral(9), NumberLiteral(9)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Gt(NumberLiteral(8), NumberLiteral(9)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Gt(StringLiteral("9"), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Gt(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(9), "right" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  testSolve(
+    Gt(
+      NumberLiteral(9),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("right" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  // Lt ***
+
+  testSolve(
+    Lt(NumberLiteral(9), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Lt(NumberLiteral(9), NumberLiteral(9)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Lt(NumberLiteral(8), NumberLiteral(9)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Lt(StringLiteral("9"), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Lt(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(8), "right" -> Json.fromInt(9)),
+    Json.True
+  )
+
+  // ** Gte
+
+  testSolve(
+    Gte(NumberLiteral(9), NumberLiteral(8)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Gte(NumberLiteral(9), NumberLiteral(9)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Gte(NumberLiteral(8), NumberLiteral(9)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Gte(StringLiteral("9"), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Gte(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(8), "right" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  testSolve(
+    Gte(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(9), "right" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  // Lte ***
+
+  testSolve(
+    Lte(NumberLiteral(8), NumberLiteral(9)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Lte(NumberLiteral(9), NumberLiteral(9)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Lte(NumberLiteral(9), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Lte(StringLiteral("8"), NumberLiteral(8)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Lte(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(8), "right" -> Json.fromInt(8)),
+    Json.True
+  )
+
+  testSolve(
+    Lte(
+      Property(StringLiteral("left"), Root),
+      Property(StringLiteral("right"), Root)
+    ),
+    Json.obj("left" -> Json.fromInt(8), "right" -> Json.fromInt(9)),
+    Json.True
+  )
+
+  // Eq ***
+
+  testSolve(
+    Not(BooleanLiteral(true)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Not(Root),
+    Json.False,
+    Json.True
+  )
+
+  testSolve(
+    Not(This),
+    Json.True,
+    Json.False
+  )
+
+  testSolve(
+    Or(BooleanLiteral(false), BooleanLiteral(false)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    Or(BooleanLiteral(true), BooleanLiteral(false)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Or(BooleanLiteral(false), BooleanLiteral(true)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    Or(BooleanLiteral(true), BooleanLiteral(true)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    And(BooleanLiteral(false), BooleanLiteral(false)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    And(BooleanLiteral(true), BooleanLiteral(false)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    And(BooleanLiteral(false), BooleanLiteral(true)),
+    Json.Null,
+    Json.False
+  )
+
+  testSolve(
+    And(BooleanLiteral(true), BooleanLiteral(true)),
+    Json.Null,
+    Json.True
+  )
+
+  testSolve(
+    In(StringLiteral("bar"), Root),
+    Json.arr(Json.fromString("foo"), Json.fromString("bar"), Json.fromString("baz")),
+    Json.True
+  )
+
+  testSolve(
+    In(StringLiteral("foo"), Root),
+    Json.obj("foo" -> Json.fromString("bar")),
+    Json.True
+  )
+
+  testSolve(
+    In(StringLiteral("foo"), Root),
+    Json.arr(Json.fromString("bar"), Json.fromString("baz")),
+    Json.False
+  )
+
+  testSolve(
+    In(StringLiteral("foo"), Root),
+    Json.obj("bar" -> Json.fromString("baz")),
+    Json.False
+  )
 }

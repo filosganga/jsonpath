@@ -16,35 +16,51 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
+val scalacOptionsSettings = List(
+  scalacOptions -= "-Xfatal-warnings",
+  scalacOptions += "-Xsource:3"
+)
+
 lazy val root = (project in file("."))
   .settings(
     name := "jsonpath"
   )
-  .aggregate(core, circe)
+  .aggregate(ast, parser, circe)
 
-lazy val core =
+lazy val ast =
   project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
-    .in(file("modules/core"))
+    .in(file("modules/ast"))
     .settings(
-      name := "jsonpath-core",
-      scalacOptions -= "-Xfatal-warnings",
-      scalacOptions += "-Xsource:3",
+      name := "jsonpath-ast",
+      scalacOptionsSettings,
       libraryDependencies ++= List(
-        "org.typelevel" %%% "cats-parse" % catsParseV,
+        "org.typelevel" %%% "cats-core" % catsV,
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
-  // .jsSettings(
-  //   scalaJSUseMainModuleInitializer := false
-  // )
+
+lazy val parser =
+  project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
+    .in(file("modules/parser"))
+    .dependsOn(ast)
+    .settings(
+      name := "jsonpath-parser",
+      scalacOptionsSettings,
+      libraryDependencies ++= List(
+        "org.typelevel" %%% "cats-parse" % catsParseV,
+        "org.scalameta" %%% "munit" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
+      )
+    )
 
 lazy val circe =
   project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
     // .crossType(CrossType.Pure)
     .in(file("modules/circe"))
-    .dependsOn(core)
+    .dependsOn(ast)
     // See https://github.com/portable-scala/sbt-crossproject/issues/102
     // .jsConfigure(
     //   _.dependsOn(core.jvm)
@@ -54,14 +70,15 @@ lazy val circe =
     // }
     .settings(
       name := "jsonpath-circe",
-      scalacOptions -= "-Xfatal-warnings",
-      scalacOptions += "-Xsource:3",
+      scalacOptionsSettings,
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
         "io.circe" %%% "circe-testing" % circeV % Test,
-        "io.circe" %%% "circe-literal" % circeV % Test,
+        "io.circe" %%% "circe-literal" % circeV % Test
+      ),
+      libraryDependencies ++= List(
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
