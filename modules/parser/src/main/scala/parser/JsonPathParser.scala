@@ -87,10 +87,10 @@ object JsonPathParser {
     val eqOpP: Parser[(Exp, Exp) => Exp] = (equalP *> equalP).void.as(Eq(_, _))
     val neqOpP: Parser[(Exp, Exp) => Exp] = (bangP *> equalP).void.as({ (l, r) => Not(Eq(l, r)) })
     val gtOrGteOpP: Parser[(Exp, Exp) => Exp] = (gtP *> equalP.?).map { opt =>
-      opt.fold(Gt.apply)(_ => Gte.apply)
+      opt.fold[(Exp, Exp) => Exp](Gt.apply)(_ => Gte.apply)
     }
     val ltOrLteOpP: Parser[(Exp, Exp) => Exp] = (ltP *> equalP.?).map { opt =>
-      opt.fold(Lt.apply)(_ => Lte.apply)
+      opt.fold[(Exp, Exp) => Exp](Lt.apply)(_ => Lte.apply)
     }
 
     Parser.oneOf(
@@ -165,14 +165,14 @@ object JsonPathParser {
     (Parser
       .oneOf(
         List(
-          (unaryOpP ~ (whitespacesP0 *> Parser.defer(expP))).map { (a, b) => a(b) },
+          (unaryOpP ~ (whitespacesP0 *> Parser.defer(expP))).map { case (a, b) => a(b) },
           literalP,
           parensExpP,
           selectorP
         )
       ) ~ (whitespacesP0 *> opP ~ (whitespacesP0 *> Parser.defer(expP))).?)
       .map {
-        case (l, Some(op, r)) => op(l, r)
+        case (l, Some((op, r))) => op(l, r)
         case (l, None) => l
       }
       .withContext("expP")

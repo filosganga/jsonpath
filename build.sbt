@@ -8,7 +8,7 @@ val munitCatsEffectV = "2.0.0-M3"
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 ThisBuild / scalaVersion := "3.2.0"
-ThisBuild / crossScalaVersions ++= List("2.13.10", "2.12.17")
+ThisBuild / crossScalaVersions ++= List("2.13.10")
 ThisBuild / organization := "com.filippodeluca"
 ThisBuild / organizationName := "Filippo De Luca"
 
