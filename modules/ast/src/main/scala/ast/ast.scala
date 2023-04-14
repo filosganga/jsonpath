@@ -51,32 +51,8 @@ object Exp {
 
 sealed trait Exp
 
-/** $.foo[1:2] = ArraySlice(1,2, Property("foo", Root))
-  *
-  * TOOD how to model open ended?
-  *
-  * @see
-  *   https://cburgmer.github.io/json-path-comparison/results/array_slice.html
-  * @see
-  *   https://cburgmer.github.io/json-path-comparison/results/array_slice_on_exact_match.html
-  * @see
-  *   https://cburgmer.github.io/json-path-comparison/results/array_slice_on_non_overlapping_array.html
-  * @see
-  *   https://cburgmer.github.io/json-path-comparison/results/array_slice_on_object.html
-  * @see
-  *   https://cburgmer.github.io/json-path-comparison/results/array_slice_with_open_start_and_end.html
-  */
-case class ArraySlice(start: Exp, end: Exp, step: Exp, target: Exp) extends Exp
-
-case class ArrayIndex(index: Exp, target: Exp) extends Exp
-
-/** @see
-  *   https://cburgmer.github.io/json-path-comparison/results/root.html
-  */
-case object Root extends Exp
-
-case object This extends Exp
-
+// *** Literals
+// TODO Shall the literals be in Literal hierarchy?
 case object NullLiteral extends Exp
 
 case class StringLiteral(value: String) extends Exp
@@ -85,13 +61,30 @@ case class NumberLiteral(value: Double) extends Exp
 
 case class BooleanLiteral(value: Boolean) extends Exp
 
+// *** Selectors
+case object Root extends Exp
+
+case object This extends Exp
+
 case class Property(name: Exp, target: Exp) extends Exp
 
 case class Wildcard(target: Exp) extends Exp
 
+case class ArraySlice(start: Exp, end: Exp, step: Exp, target: Exp) extends Exp
+
+case class ArrayIndex(index: Exp, target: Exp) extends Exp
+
 case class Filter(predicate: Exp, target: Exp) extends Exp
 
-// *** Operator (shall them be not an expresion or a different one like filter?)
+// TODO Implement Union
+// case class Union(exps: List[Exp])
+
+// TODO Implement ...dunno the name nbiut this: {a: @.foo.bar, b: @.bar.foo}
+// Is the key an expression as well? Why no? {($.a.b): @.foo.bar, ('b'): @.bar.foo}
+// case class NoName(Map[Exp, Exp])
+
+// *** Operators
+// TODO Shall the operator be not an expresion or perhaps a different one?
 case class Eq(left: Exp, right: Exp) extends Exp
 
 case class Gt(left: Exp, right: Exp) extends Exp
@@ -110,5 +103,17 @@ case class Or(left: Exp, right: Exp) extends Exp
 
 case class In(item: Exp, set: Exp) extends Exp
 
-// TODO Implement Union
-// case class Union(exps: List[Exp])
+// TODO Add math operators
+// case class Plus(l: Exp, r: Exp) extends Exp
+
+// case class Minus(l: Exp, r: Exp) extends Exp
+
+// case class Times(l: Exp, r: Exp) extends Exp
+
+// case class DividedBy(l: Exp, r: Exp) extends Exp
+
+// case class Modulo(l: Exp, r: Exp) extends Exp
+
+// TODO Add function: max(@.foo, @.bar)
+// Should the name be an expression? In the AST probably yes, not in the syntax
+// case class Function(name: Exp, targets: Vector[Exp]) extends Exp
