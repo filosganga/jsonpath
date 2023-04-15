@@ -38,7 +38,8 @@ lazy val noPublishSettings = List(
   publish := {},
   publishLocal := {},
   publishTo := None,
-  publishArtifact := false
+  publishArtifact := false,
+  publish / skip := true
 )
 
 lazy val publishSettings = List(
