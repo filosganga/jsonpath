@@ -33,6 +33,7 @@ ThisBuild / scmInfo := Some(
     "scm:git@github.com:filosganga/jsonpath.git"
   )
 )
+ThisBuild / versionScheme := Some("semver-spec")
 
 lazy val noPublishSettings = List(
   publish := {},
