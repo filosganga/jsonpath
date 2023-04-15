@@ -56,7 +56,7 @@ jobs:
           java-version: "17"
           distribution: "temurin"
       - uses: coursier/cache-action@v6
-      - uses: actions/download-tartifact@v2
+      - uses: alehechka/download-tartifact@v2
         with:
           name: targets
       - run: git fetch --tags
