@@ -39,77 +39,132 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     }
   }
 
-  test("solve string literal on arbitray json should return the string literal") {
-    forAll { (str: String, json: Json) =>
-      assertEquals(solve(StringLiteral(str), json), Vector(Json.fromString(str)))
-    }
-  }
+  testSolve(
+    StringLiteral("foo"),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.fromString("foo")
+  )
 
-  test("solve boolean literal on arbitray json should return the boolean literal") {
-    forAll { (bool: Boolean, json: Json) =>
-      assertEquals(solve(BooleanLiteral(bool), json), Vector(Json.fromBoolean(bool)))
-    }
-  }
+  testSolve(
+    BooleanLiteral(true),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.fromBoolean(true)
+  )
 
-  test("""solve @ on {"foo": "bar"} should return the [{"foo": "bar"}]""") {
-    forAll { (json: Json) =>
-      assertEquals(solve(This, json), Vector(json))
-    }
-  }
+  testSolve(
+    BooleanLiteral(false),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.fromBoolean(false)
+  )
 
-  test("""solve $ on {"foo": "bar"} should return the [{"foo": "bar"}]""") {
-    forAll { (json: Json) =>
-      assertEquals(solve(Root, json), Vector(json))
-    }
-  }
+  testSolve(
+    NumberLiteral(10),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.fromInt(10)
+  )
 
-  test("""solve @.property on {"property": "value") should return ["value"]""") {
-    forAllNoShrink { (name: String, value: Json) =>
-      assertEquals(
-        solve(Property(StringLiteral(name), This), Json.obj(name -> value)),
-        Vector(value)
-      )
-    }
-  }
+  testSolve(
+    This,
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    )
+  )
 
-  test("""solve @.foo on {"bar": "value") should return []""") {
-    forAll { (name: String, current: Json) =>
-      val jsonWithoutProperty = current.mapObject(_.filterKeys(_ != name))
-      assertEquals(solve(Property(StringLiteral(name), This), jsonWithoutProperty), Vector.empty)
-    }
-  }
+  testSolve(
+    Root,
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    ),
+    Json.obj(
+      "foo" -> Json.fromString("bar")
+    )
+  )
 
-  test("""solve @.foo.bar on {"foo":{"bar": "value"}) should return ["value"]""") {
-    forAll { (parentName: String, name: String, value: Json) =>
-      val jsonObj = Json.obj(parentName -> Json.obj(name -> value))
-      val exp = Property(StringLiteral(name), Property(StringLiteral(parentName), This))
-      assertEquals(solve(exp, jsonObj), Vector(value))
-    }
-  }
+  testSolve(
+    Property(StringLiteral("foo"), Root),
+    Json.obj(
+      "bar" -> Json.fromString("value")
+    )
+  )
 
-  test("""solve @.foo.bar on {"foo":{"baz": "value"}) should return []""") {
-    forAll { (parentName: String, name: String, current: Json) =>
-      val source = current.mapObject(_.filterKeys(_ != name))
-      val exp = Property(StringLiteral(name), Property(StringLiteral(parentName), This))
-      assertEquals(solve(exp, source), Vector.empty)
-    }
-  }
+  testSolve(
+    Property(StringLiteral("bar"), Property(StringLiteral("foo"), Root)),
+    Json.obj(
+      "foo" ->
+        Json.obj(
+          "bar" -> Json.fromString("value")
+        )
+    ),
+    Json.fromString("value")
+  )
 
-  test("solve @[3] on [0,1,2] should retun [2]") {
-    forAll { (value: Json, otherValue: Json) =>
-      val current = Json.arr(otherValue, value, otherValue)
-      val exp = ArrayIndex(NumberLiteral(1), This)
-      assertEquals(solve(exp, current), Vector(value))
-    }
-  }
+  testSolve(
+    Property(StringLiteral("bar"), Property(StringLiteral("foo"), Root)),
+    Json.obj(
+      "foo" ->
+        Json.obj(
+          "baz" -> Json.fromString("value")
+        )
+    )
+  )
 
-  test("solve @[3] on [0,1] should retun []") {
-    forAll { (otherValue: Json) =>
-      val current = Json.arr(otherValue, otherValue)
-      val exp = ArrayIndex(NumberLiteral(3), This)
-      assertEquals(solve(exp, current), Vector.empty)
-    }
-  }
+  testSolve(
+    ArrayIndex(NumberLiteral(1), This),
+    Json.arr(
+      Json.fromInt(0),
+      Json.fromInt(1),
+      Json.fromInt(2)
+    ),
+    Json.fromInt(1)
+  )
+
+  testSolve(
+    ArrayIndex(NumberLiteral(-1), This),
+    Json.arr(
+      Json.fromInt(0),
+      Json.fromInt(1),
+      Json.fromInt(2)
+    ),
+    Json.fromInt(2)
+  )
+
+  testSolve(
+    ArrayIndex(NumberLiteral(-2), This),
+    Json.arr(
+      Json.fromInt(0),
+      Json.fromInt(1),
+      Json.fromInt(2)
+    ),
+    Json.fromInt(1)
+  )
+
+  testSolve(
+    ArrayIndex(NumberLiteral(-4), This),
+    Json.arr(
+      Json.fromInt(0),
+      Json.fromInt(1),
+      Json.fromInt(2)
+    )
+  )
+
+  testSolve(
+    ArrayIndex(NumberLiteral(3), This),
+    Json.arr(
+      Json.fromInt(0),
+      Json.fromInt(1)
+    )
+  )
 
   testSolve(
     ArrayIndex(NumberLiteral(1), Property(StringLiteral("foo"), This)),

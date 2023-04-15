@@ -23,10 +23,11 @@ import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
 
-// TODO implement ArrayIndex with negative numbers
 object CirceSolver {
 
+  // TODO Shall we use ADT instead?
   case class Context(values: Vector[Json]) {
+    // Returns Some only if there is only one result in the result list otherwise None
     def value: Option[Json] = if (values.size == 1) {
       values.headOption
     } else {
@@ -75,7 +76,7 @@ object CirceSolver {
       case Property(nameExp, target) =>
         val targetCtx = loop(target, current, root)
         val results = targetCtx.values.mapFilter { target =>
-          // TODO Fail if the value is an array
+          // TODO Should id fail if the value is an array?
           val name = loop(nameExp, Context.one(target), root).value.flatMap(stringValue)
           name
             .flatMap { name =>
@@ -93,13 +94,18 @@ object CirceSolver {
       case ArrayIndex(indexExp, targetExp) =>
         val targetCtx = loop(targetExp, current, root)
         val results = targetCtx.values.mapFilter { target =>
-          // TODO Fail if the value is an array
+          // TODO Should id fail if the value is an array?
           val index = loop(indexExp, Context.one(target), root).value.flatMap(intValue)
           index
             .flatMap { index =>
               target.asArray
                 .flatMap { arr =>
-                  arr.get(index.toLong)
+                  if (index < 0) {
+                    arr.get((arr.length + index).toLong)
+                  } else {
+                    arr.get(index.toLong)
+                  }
+
                 }
             }
 
@@ -145,7 +151,7 @@ object CirceSolver {
         val targetCtx = loop(target, current, root)
         val results = targetCtx.values.flatMap { target =>
           target.asArray.fold {
-            // TODO Fail if the value is an array
+            // TODO Should id fail if the value is an array?
             val predicateValue =
               loop(predicate, Context.one(target), root).value.map(booleanValue).getOrElse(false)
             if (predicateValue) {
@@ -155,7 +161,7 @@ object CirceSolver {
             }
           } { targets =>
             targets.filter { item =>
-              // TODO Fail if the value is an array
+              // TODO Should id fail if the value is an array?
               loop(predicate, Context.one(item), root).value.map(booleanValue).getOrElse(false)
             }
           }
