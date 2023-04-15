@@ -22,11 +22,15 @@ jobs:
           java-version: "17"
           distribution: "temurin"
       - uses: coursier/cache-action@v6
-      - run: sbt "+scalafmtCheckAll;+headerCheckAll;+compile;+Test/compile"
-      - run: sbt "+Test/test"
+      - name: build
+        id: build
+        run: sbt "+scalafmtCheckAll;+headerCheckAll;+compile;+Test/compile"
+      - name: test
+        id: test
+        run: sbt "+Test/test"
       - name: Test Report
         uses: dorny/test-reporter@v1.6.0
-        if: success() || failure()
+        if: (success() || failure()) && steps.build.conclusion == 'success'
         with:
           list-suites: "all"
           list-tests: "all"
