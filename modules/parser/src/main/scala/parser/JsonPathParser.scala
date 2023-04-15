@@ -18,7 +18,6 @@ package com.filippodeluca.jsonpath
 package parser
 
 import cats.parse.*
-import cats.syntax.all.*
 
 import com.filippodeluca.jsonpath.ast.*
 
