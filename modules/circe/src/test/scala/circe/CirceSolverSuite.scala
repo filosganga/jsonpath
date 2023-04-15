@@ -882,4 +882,78 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.obj("bar" -> Json.fromString("baz")),
     Json.False
   )
+
+  // Plus ***
+
+  testSolve(
+    Plus(NumberLiteral(1), Root),
+    Json.fromInt(2),
+    Json.fromInt(3)
+  )
+
+  testSolve(
+    Plus(NumberLiteral(1), Root),
+    Json.fromInt(-2),
+    Json.fromInt(-1)
+  )
+
+  testSolve(
+    Minus(NumberLiteral(5), Root),
+    Json.fromInt(2),
+    Json.fromInt(3)
+  )
+
+  testSolve(
+    Minus(NumberLiteral(5), Root),
+    Json.fromInt(-2),
+    Json.fromInt(7)
+  )
+
+  testSolve(
+    Minus(Minus(NumberLiteral(5), NumberLiteral(1)), Root),
+    Json.fromInt(-2),
+    Json.fromInt(6)
+  )
+
+  testSolve(
+    Times(NumberLiteral(10), Root),
+    Json.fromInt(2),
+    Json.fromInt(20)
+  )
+
+  testSolve(
+    Times(NumberLiteral(10), Root),
+    Json.fromInt(-1),
+    Json.fromInt(-10)
+  )
+
+  testSolve(
+    DividedBy(NumberLiteral(5), Root),
+    Json.fromInt(-2),
+    Json.fromBigDecimal(BigDecimal(-2.5f))
+  )
+
+  testSolve(
+    Modulo(NumberLiteral(5), Root),
+    Json.fromInt(-2),
+    Json.fromInt(1)
+  )
+
+  testSolve(
+    Modulo(NumberLiteral(5), Root),
+    Json.fromInt(5),
+    Json.fromInt(0)
+  )
+
+  testSolve(
+    Modulo(NumberLiteral(5), Root),
+    Json.fromInt(1),
+    Json.fromInt(0)
+  )
+
+  testSolve(
+    Modulo(NumberLiteral(6), Root),
+    Json.fromInt(3),
+    Json.fromInt(0)
+  )
 }
