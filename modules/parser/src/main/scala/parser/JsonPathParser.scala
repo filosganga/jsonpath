@@ -28,6 +28,9 @@ object JsonPathParser {
   val closeSquareBraceP: Parser[Unit] = Parser.char(']')
   val questionMarkP: Parser[Unit] = Parser.char('?')
   val starP: Parser[Unit] = Parser.char('*')
+  val plusP = Parser.char('+')
+  val slahsP = Parser.char('/')
+  val percentP = Parser.char('%')
   val equalP: Parser[Unit] = Parser.char('=')
   val bangP: Parser[Unit] = Parser.char('!')
   val dashP: Parser[Unit] = Parser.char('-')
@@ -81,6 +84,12 @@ object JsonPathParser {
 
   val opP: Parser[(Exp, Exp) => Exp] = {
 
+    val plusOpP: Parser[(Exp, Exp) => Exp] = (plusP).void.as(Plus(_, _))
+    val minusOpP: Parser[(Exp, Exp) => Exp] = (dashP).void.as(Minus(_, _))
+    val timesOpP: Parser[(Exp, Exp) => Exp] = (starP).void.as(Times(_, _))
+    val divideByOpP: Parser[(Exp, Exp) => Exp] = (slahsP).void.as(DividedBy(_, _))
+    val moduloOpP: Parser[(Exp, Exp) => Exp] = (percentP).void.as(Modulo(_, _))
+
     val andOpP: Parser[(Exp, Exp) => Exp] = (ampersandP *> ampersandP).void.as(And(_, _))
     val orOpP: Parser[(Exp, Exp) => Exp] = (pipeP *> pipeP).void.as(Or(_, _))
     val eqOpP: Parser[(Exp, Exp) => Exp] = (equalP *> equalP).void.as(Eq(_, _))
@@ -94,6 +103,12 @@ object JsonPathParser {
 
     Parser.oneOf(
       List(
+        plusOpP,
+        minusOpP,
+        timesOpP,
+        divideByOpP,
+        divideByOpP,
+        moduloOpP,
         andOpP,
         orOpP,
         eqOpP,
@@ -103,23 +118,6 @@ object JsonPathParser {
       )
     )
   }
-
-  val rootOrThis: Parser[Exp] = (thisP | rootP)
-
-  val dotPropertyP: Parser[Exp => Exp] = {
-
-    val segmentP: Parser[String] =
-      (Parser.charWhere(c => c.isLetter | c == '_' | c == '-' | c == '&') ~ Parser
-        .charWhere(c => c.isLetterOrDigit | c == '_' | c == '-' | c == '&')
-        .rep0)
-        .map { case (h, tail) =>
-          (h :: tail).mkString
-        }
-        .withContext("segmentP")
-
-    (dotP *> (starP
-      .as(Wildcard(_)) | segmentP.map(StringLiteral.apply).map(name => Property(name, _))))
-  }.withContext("dotPropertyP")
 
   val expP: Parser[Exp] = {
 
@@ -151,6 +149,22 @@ object JsonPathParser {
         )
       ) <* closeSquareBraceP).withContext("bracketsP")
     }
+
+    val rootOrThis: Parser[Exp] = (thisP | rootP)
+    val dotPropertyP: Parser[Exp => Exp] = {
+
+      val segmentP: Parser[String] =
+        (Parser.charWhere(c => c.isLetter | c == '_' | c == '-' | c == '&') ~ Parser
+          .charWhere(c => c.isLetterOrDigit | c == '_' | c == '-' | c == '&')
+          .rep0)
+          .map { case (h, tail) =>
+            (h :: tail).mkString
+          }
+          .withContext("segmentP")
+
+      (dotP *> (starP
+        .as(Wildcard(_)) | segmentP.map(StringLiteral.apply).map(name => Property(name, _))))
+    }.withContext("dotPropertyP")
 
     val selectorP: Parser[Exp] = literalP | (rootOrThis ~ (dotPropertyP | bracketsP).rep0)
       .map {
