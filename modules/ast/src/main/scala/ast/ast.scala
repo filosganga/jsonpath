@@ -45,6 +45,11 @@ object Exp {
     case And(l, r) => show"$l && $r"
     case Or(l, r) => show"$l || $r"
     case In(item, set) => show"$item in $set"
+    case Plus(l, r) => show"$l + $r"
+    case Minus(l, r) => show"$l - $r"
+    case Times(l, r) => show"$l * $r"
+    case DividedBy(l, r) => show"$l / $r"
+    case Modulo(l, r) => show"$l % $r"
   }
 
 }
@@ -103,16 +108,15 @@ case class Or(left: Exp, right: Exp) extends Exp
 
 case class In(item: Exp, set: Exp) extends Exp
 
-// TODO Add math operators
-// case class Plus(l: Exp, r: Exp) extends Exp
+case class Plus(l: Exp, r: Exp) extends Exp
 
-// case class Minus(l: Exp, r: Exp) extends Exp
+case class Minus(l: Exp, r: Exp) extends Exp
 
-// case class Times(l: Exp, r: Exp) extends Exp
+case class Times(l: Exp, r: Exp) extends Exp
 
-// case class DividedBy(l: Exp, r: Exp) extends Exp
+case class DividedBy(l: Exp, r: Exp) extends Exp
 
-// case class Modulo(l: Exp, r: Exp) extends Exp
+case class Modulo(l: Exp, r: Exp) extends Exp
 
 // TODO Add function: max(@.foo, @.bar)
 // Should the name be an expression? In the AST probably yes, not in the syntax

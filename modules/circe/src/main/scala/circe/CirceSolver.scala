@@ -250,6 +250,55 @@ object CirceSolver {
 
         Context(result.map(Json.fromBoolean).toVector)
 
+      case Plus(lExp, rExp) =>
+        val result = for {
+          r <- loop(rExp, current, root).value
+          l <- loop(lExp, current, root).value
+          rn <- r.asNumber
+          ln <- l.asNumber
+          result <- Json.fromDouble(ln.toDouble + rn.toDouble)
+        } yield result
+        Context(result.toVector)
+
+      case Minus(lExp, rExp) =>
+        val result = for {
+          r <- loop(rExp, current, root).value
+          l <- loop(lExp, current, root).value
+          rn <- r.asNumber
+          ln <- l.asNumber
+          result <- Json.fromDouble(ln.toDouble - rn.toDouble)
+        } yield result
+        Context(result.toVector)
+
+      case Times(lExp, rExp) =>
+        val result = for {
+          r <- loop(rExp, current, root).value
+          l <- loop(lExp, current, root).value
+          rn <- r.asNumber
+          ln <- l.asNumber
+          result <- Json.fromDouble(ln.toDouble * rn.toDouble)
+        } yield result
+        Context(result.toVector)
+
+      case DividedBy(lExp, rExp) =>
+        val result = for {
+          r <- loop(rExp, current, root).value
+          l <- loop(lExp, current, root).value
+          rn <- r.asNumber
+          ln <- l.asNumber
+          result <- Json.fromDouble(ln.toDouble / rn.toDouble)
+        } yield result
+        Context(result.toVector)
+
+      case Modulo(lExp, rExp) =>
+        val result = for {
+          r <- loop(rExp, current, root).value
+          l <- loop(lExp, current, root).value
+          rn <- r.asNumber
+          ln <- l.asNumber
+          result <- Json.fromDouble(ln.toDouble % rn.toDouble)
+        } yield result
+        Context(result.toVector)
     }
 
     loop(exp, Context.one(source), source).values

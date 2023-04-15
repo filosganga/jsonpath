@@ -263,4 +263,79 @@ class JsonPathParserSuite extends munit.FunSuite {
     ArraySlice(NullLiteral, NullLiteral, NumberLiteral(1), Root)
   )
 
+  shouldParse(
+    "1 + 2",
+    Plus(NumberLiteral(1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 + 2",
+    Plus(NumberLiteral(-1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 + -2",
+    Plus(NumberLiteral(-1), NumberLiteral(-2))
+  )
+
+  shouldParse(
+    "1 - 2",
+    Minus(NumberLiteral(1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 - 2",
+    Minus(NumberLiteral(-1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 - -2",
+    Minus(NumberLiteral(-1), NumberLiteral(-2))
+  )
+
+  shouldParse(
+    "1 * 2",
+    Times(NumberLiteral(1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 * 2",
+    Times(NumberLiteral(-1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 * -2",
+    Times(NumberLiteral(-1), NumberLiteral(-2))
+  )
+
+  shouldParse(
+    "1 / 2",
+    DividedBy(NumberLiteral(1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 / 2",
+    DividedBy(NumberLiteral(-1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 / -2",
+    DividedBy(NumberLiteral(-1), NumberLiteral(-2))
+  )
+
+  shouldParse(
+    "1 % 2",
+    Modulo(NumberLiteral(1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 % 2",
+    Modulo(NumberLiteral(-1), NumberLiteral(2))
+  )
+
+  shouldParse(
+    "-1 % -2",
+    Modulo(NumberLiteral(-1), NumberLiteral(-2))
+  )
+
 }
