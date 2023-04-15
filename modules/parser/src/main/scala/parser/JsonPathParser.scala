@@ -127,7 +127,7 @@ object JsonPathParser {
     val parensExpP =
       (openParenP *> whitespaceP.rep0) *> Parser.defer(expP) <* (whitespaceP.rep0 <* closeParenP)
         .withContext(
-          "parentsExpP"
+          "parensExpP"
         )
 
     val bracketsP: Parser[Exp => Exp] = {
