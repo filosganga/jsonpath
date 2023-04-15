@@ -72,8 +72,8 @@ object CirceSolver {
       case This => current
       case Root => Context.one(root)
 
-      case Property(nameExp, parent) =>
-        val targetCtx = loop(parent, current, root)
+      case Property(nameExp, target) =>
+        val targetCtx = loop(target, current, root)
         val results = targetCtx.values.mapFilter { target =>
           // TODO Fail if the value is an array
           val name = loop(nameExp, Context.one(target), root).value.flatMap(stringValue)
@@ -90,8 +90,8 @@ object CirceSolver {
 
         Context(results)
 
-      case ArrayIndex(indexExp, parentExp) =>
-        val targetCtx = loop(parentExp, current, root)
+      case ArrayIndex(indexExp, targetExp) =>
+        val targetCtx = loop(targetExp, current, root)
         val results = targetCtx.values.mapFilter { target =>
           // TODO Fail if the value is an array
           val index = loop(indexExp, Context.one(target), root).value.flatMap(intValue)
@@ -141,8 +141,8 @@ object CirceSolver {
 
         Context(results)
 
-      case Filter(predicate, parent) =>
-        val targetCtx = loop(parent, current, root)
+      case Filter(predicate, target) =>
+        val targetCtx = loop(target, current, root)
         val results = targetCtx.values.flatMap { target =>
           target.asArray.fold {
             // TODO Fail if the value is an array
