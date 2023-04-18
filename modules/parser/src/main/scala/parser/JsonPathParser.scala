@@ -24,6 +24,7 @@ import com.filippodeluca.jsonpath.ast.*
 object JsonPathParser {
 
   val dotP: Parser[Unit] = Parser.char('.')
+  val commaP: Parser[Unit] = Parser.char(',')
   val openSquareBraceP: Parser[Unit] = Parser.char('[')
   val closeSquareBraceP: Parser[Unit] = Parser.char(']')
   val questionMarkP: Parser[Unit] = Parser.char('?')
@@ -166,7 +167,7 @@ object JsonPathParser {
         .as(Wildcard(_)) | segmentP.map(StringLiteral.apply).map(name => Property(name, _))))
     }.withContext("dotPropertyP")
 
-    val selectorP: Parser[Exp] = literalP | (rootOrThis ~ (dotPropertyP | bracketsP).rep0)
+    val selectorP: Parser[Exp] = (rootOrThis ~ (dotPropertyP | bracketsP).rep0)
       .map {
         case (target, xs) if xs.nonEmpty =>
           xs.reduceRight[Exp => Exp] { (l, r) => r.compose(l) }(target)
@@ -175,9 +176,20 @@ object JsonPathParser {
       }
       .withContext("selectorP")
 
+    val unionExpP =
+      ((openSquareBraceP *> whitespacesP0 *> Parser.defer(
+        expP
+      )) ~ (commaP *> whitespacesP0 *> Parser
+        .defer(expP)).rep0 <* (whitespacesP0 <* closeSquareBraceP))
+        .map { case (head, tail) =>
+          head :: tail
+        }
+        .map(Union.apply)
+
     (Parser
       .oneOf(
         List(
+          unionExpP,
           (unaryOpP ~ (whitespacesP0 *> Parser.defer(expP))).map { case (a, b) => a(b) },
           literalP,
           parensExpP,
