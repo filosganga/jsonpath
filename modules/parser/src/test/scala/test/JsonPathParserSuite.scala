@@ -69,6 +69,16 @@ class JsonPathParserSuite extends munit.FunSuite {
   )
 
   shouldParse(
+    "$['$test']",
+    Property(StringLiteral("$test"), Root)
+  )
+
+  shouldParse(
+    "$['@test']",
+    Property(StringLiteral("@test"), Root)
+  )
+
+  shouldParse(
     "$.*",
     Wildcard(Root)
   )
