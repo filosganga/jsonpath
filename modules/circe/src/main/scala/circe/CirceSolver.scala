@@ -305,6 +305,9 @@ object CirceSolver {
           result <- Json.fromDouble(ln.toDouble % rn.toDouble)
         } yield result
         Context(result.toVector)
+
+      case Union(exps) =>
+        Context(exps.flatMap(exp => loop(exp, current, root).values))
     }
 
     loop(exp, Context.one(source), source).values

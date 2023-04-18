@@ -127,6 +127,7 @@ lazy val circe =
       publishSettings,
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
+        "io.circe" %%% "circe-parser" % circeV,
         "io.circe" %%% "circe-testing" % circeV % Test,
         "io.circe" %%% "circe-literal" % circeV % Test
       ),

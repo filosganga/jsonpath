@@ -50,7 +50,7 @@ object Exp {
     case Times(l, r) => show"$l * $r"
     case DividedBy(l, r) => show"$l / $r"
     case Modulo(l, r) => show"$l % $r"
-    case Union(exps) => show"[{$exps}]"
+    case Union(exps) => show"""[${exps.map(_.show).mkString(",")}]"""
   }
 
 }
@@ -83,7 +83,7 @@ case class ArrayIndex(index: Exp, target: Exp) extends Exp
 case class Filter(predicate: Exp, target: Exp) extends Exp
 
 // TODO Implement Union
-case class Union(exps: List[Exp]) extends Exp
+case class Union(exps: Vector[Exp]) extends Exp
 
 // TODO Implement ...dunno the name nbiut this: {a: @.foo.bar, b: @.bar.foo}
 // Is the key an expression as well? Why no? {($.a.b): @.foo.bar, ('b'): @.bar.foo}

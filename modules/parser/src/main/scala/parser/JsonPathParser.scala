@@ -182,7 +182,7 @@ object JsonPathParser {
       )) ~ (commaP *> whitespacesP0 *> Parser
         .defer(expP)).rep0 <* (whitespacesP0 <* closeSquareBraceP))
         .map { case (head, tail) =>
-          head :: tail
+          (head :: tail).toVector
         }
         .map(Union.apply)
 
