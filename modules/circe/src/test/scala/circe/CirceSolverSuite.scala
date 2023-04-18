@@ -1011,4 +1011,44 @@ class CirceSolverSuite extends munit.ScalaCheckSuite {
     Json.fromInt(3),
     Json.fromInt(0)
   )
+
+  // Union ***
+
+  testSolve(
+    Union(Vector(Root)),
+    Json.fromInt(8),
+    Json.fromInt(8)
+  )
+
+  testSolve(
+    Union(Vector(Root, Root)),
+    Json.fromInt(8),
+    Json.fromInt(8),
+    Json.fromInt(8)
+  )
+
+  testSolve(
+    Union(Vector(Property(StringLiteral("foo"), Root), Property(StringLiteral("bar"), This))),
+    json"""{"foo": 1, "bar": 2}""",
+    Json.fromInt(1),
+    Json.fromInt(2)
+  )
+
+  testSolve(
+    Union(
+      Vector(
+        Property(StringLiteral("foo"), Root),
+        Union(
+          Vector(
+            Property(StringLiteral("bar"), This),
+            Property(StringLiteral("baz"), This)
+          )
+        )
+      )
+    ),
+    json"""{"foo": 1, "bar": 2, "baz": 3}""",
+    Json.fromInt(1),
+    Json.fromInt(2),
+    Json.fromInt(3)
+  )
 }
