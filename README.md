@@ -11,8 +11,8 @@ val jsonPathVersion = "<latestVersion>"
 
 // For scalaJs or scalaNative cross build, use %%% instead of %%
 libraryDependencies ++= List(
-  "com.filippodeluca.jsonpath" %% "jsonpath-parser" % jsonPathVersion,
-  "com.filippodeluca.jsonpath" %% "jsonpath-circe" % jsonPathVersion
+  "com.filippodeluca" %% "jsonpath-parser" % jsonPathVersion,
+  "com.filippodeluca" %% "jsonpath-circe" % jsonPathVersion
 )
 ```
 
