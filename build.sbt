@@ -4,6 +4,7 @@ val catsV = "2.9.0"
 val catsEffectV = "3.4.8"
 val munitV = "1.0.0-M7"
 val munitCatsEffectV = "2.0.0-M3"
+val literallyV = "1.1.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
@@ -75,7 +76,7 @@ lazy val root = project
   .settings(
     name := "jsonpath"
   )
-  .aggregate(ast, parser, circe)
+  .aggregate(ast, parser, literal, circe)
   .settings(noPublishSettings)
 
 lazy val ast =
@@ -103,6 +104,22 @@ lazy val parser =
       publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
+        "org.scalameta" %%% "munit" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
+      )
+    )
+
+lazy val literal =
+  project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
+    .in(file("modules/literal"))
+    .dependsOn(ast, parser)
+    .settings(
+      name := "jsonpath-literal",
+      scalacOptionsSettings,
+      publishSettings,
+      libraryDependencies ++= List(
+        "org.typelevel" %%% "literally" % literallyV,
         "org.scalameta" %%% "munit" % munitV % Test,
         "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
