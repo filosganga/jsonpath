@@ -50,7 +50,7 @@ object Exp {
     case Times(l, r) => show"$l * $r"
     case DividedBy(l, r) => show"$l / $r"
     case Modulo(l, r) => show"$l % $r"
-    case Union(exps) => show"""[${exps.map(_.show).mkString(",")}]"""
+    case Union(exps) => show"""[${exps.map(e => e.show).mkString(",")}]"""
   }
 
 }

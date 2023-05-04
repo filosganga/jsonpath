@@ -205,4 +205,7 @@ object JsonPathParser {
 
   def parse(str: String) = expP.parseAll(str)
 
+  def unsafeParse(str: String) =
+    parse(str).fold(e => throw new RuntimeException(e.toString), identity)
+
 }
