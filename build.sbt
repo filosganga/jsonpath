@@ -76,7 +76,7 @@ lazy val root = project
   .settings(
     name := "jsonpath"
   )
-  .aggregate(ast, parser, literal, circe)
+  .aggregate(ast, parser, literal, circe, generic)
   .settings(noPublishSettings)
 
 lazy val ast =
@@ -157,5 +157,28 @@ lazy val circe =
   // .jsSettings(
   //   scalaJSUseMainModuleInitializer := false
   // )
+
+  lazy val generic =
+    project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
+      // .crossType(CrossType.Pure)
+      .in(file("modules/generic"))
+      .dependsOn(ast)
+      // See https://github.com/portable-scala/sbt-crossproject/issues/102
+      // .jsConfigure(
+      //   _.dependsOn(core.jvm)
+      // )
+      // .jsConfigure {
+      //   _.dependsOn(core.js)
+      // }
+      .settings(
+        name := "jsonpath-generic",
+        scalacOptionsSettings,
+        publishSettings,
+        libraryDependencies ++= List(
+          "org.scalameta" %%% "munit" % munitV % Test,
+          "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+          "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
+        )
+      )
 
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.

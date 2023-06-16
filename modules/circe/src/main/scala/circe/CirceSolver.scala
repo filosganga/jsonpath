@@ -24,7 +24,6 @@ import io.circe.Json
 import com.filippodeluca.jsonpath.ast.*
 
 object CirceSolver {
-
   // TODO Shall we use ADT instead?
   case class Context(values: Vector[Json]) {
     // Returns Some only if there is only one result in the result list otherwise None
