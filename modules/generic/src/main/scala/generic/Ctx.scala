@@ -26,8 +26,12 @@ abstract class Ctx[T <: Ctx[T, A], A] {
 
   def one(value: A, root: A): T
   def many(values: Vector[A], root: A): T
+  def current: T
 
-  def loop(exp: Exp): T
+  def nullCtx(root: A): T
+  def stringCtx(value: String, root: A): T
+  def booleanCtx(value: Boolean, root: A): T
+  def numberCtx(value: Double, root: A): T
 
   def arrayValue(a: A): Option[Seq[A]]
   def arrayToValue(seq: Seq[A]): A
@@ -35,8 +39,183 @@ abstract class Ctx[T <: Ctx[T, A], A] {
   def mapValue(a: A): Option[Map[String, A]]
 
   def intValue(a: A): Option[Int]
+  def doubleValue(a: A): Option[Double]
   def stringValue(a: A): Option[String]
   def booleanValue(a: A): Boolean
+
+  def loop(exp: Exp): T = exp match {
+    case NullLiteral => nullCtx(root)
+    case StringLiteral(value) => stringCtx(value, root)
+    case BooleanLiteral(value) => booleanCtx(value, root)
+    case NumberLiteral(value) => numberCtx(value, root)
+    case This => current
+    case Root => one(root, root)
+
+    case prop: Property => getProperty(prop)
+    case wildcard: Wildcard => getWildcard(wildcard)
+    case idx: ArrayIndex => getArrayIndex(idx)
+    case slice: ArraySlice => sliceArray(slice)
+    case filter: Filter => applyFilter(filter)
+
+    // TODO think about associativity and how to handle operators on multiple results
+
+    case Eq(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value
+        right <- loop(rightExp).value
+      } yield left == right
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Not(exp) => {
+      val result = for {
+        value <- loop(exp).value.map(booleanValue)
+      } yield !value
+
+      result.fold(many(Vector.empty, root))(booleanCtx(_, root))
+    }
+
+    case Or(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value.map(booleanValue)
+        right <- loop(rightExp).value.map(booleanValue)
+      } yield left || right
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case And(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value.map(booleanValue)
+        right <- loop(rightExp).value.map(booleanValue)
+      } yield left && right
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case In(itemExp, setExp) => {
+      val result = for {
+        set <- loop(setExp).value
+        item <- loop(itemExp).value
+      } yield {
+        arrayValue(set).exists(_.contains(item)) ||
+        stringValue(item).exists(key => mapValue(set).exists(map => map.contains(key)))
+      }
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Gt(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value
+        right <- loop(rightExp).value
+      } yield {
+        stringValue(left).exists(l => stringValue(right).exists(r => l > r)) ||
+        doubleValue(left).exists(l => doubleValue(right).exists(r => l > r))
+      }
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Gte(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value
+        right <- loop(rightExp).value
+      } yield {
+        stringValue(left).exists(l => stringValue(right).exists(r => l >= r)) ||
+        doubleValue(left).exists(l => doubleValue(right).exists(r => l >= r))
+      }
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Lt(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value
+        right <- loop(rightExp).value
+      } yield {
+        stringValue(left).exists(l => stringValue(right).exists(r => l < r)) ||
+        doubleValue(left).exists(l => doubleValue(right).exists(r => l < r))
+      }
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Lte(leftExp, rightExp) => {
+      val result = for {
+        left <- loop(leftExp).value
+        right <- loop(rightExp).value
+      } yield {
+        stringValue(left).exists(l => stringValue(right).exists(r => l <= r)) ||
+        doubleValue(left).exists(l => doubleValue(right).exists(r => l <= r))
+      }
+
+      booleanCtx(result.getOrElse(false), root)
+    }
+
+    case Plus(lExp, rExp) => {
+      val result = for {
+        r <- loop(rExp).value
+        l <- loop(lExp).value
+        rn <- doubleValue(r)
+        ln <- doubleValue(l)
+        result <- (ln + rn).some
+      } yield result
+
+      result.fold(many(Vector.empty, root))(numberCtx(_, root))
+    }
+
+    case Minus(lExp, rExp) => {
+      val result = for {
+        r <- loop(rExp).value
+        l <- loop(lExp).value
+        rn <- doubleValue(r)
+        ln <- doubleValue(l)
+        result <- (ln - rn).some
+      } yield result
+
+      result.fold(many(Vector.empty, root))(numberCtx(_, root))
+    }
+
+    case Times(lExp, rExp) => {
+      val result = for {
+        r <- loop(rExp).value
+        l <- loop(lExp).value
+        rn <- doubleValue(r)
+        ln <- doubleValue(l)
+        result <- (ln * rn).some
+      } yield result
+
+      result.fold(many(Vector.empty, root))(numberCtx(_, root))
+    }
+
+    case DividedBy(lExp, rExp) => {
+      val result = for {
+        r <- loop(rExp).value
+        l <- loop(lExp).value
+        rn <- doubleValue(r)
+        ln <- doubleValue(l)
+        result <- (ln / rn).some
+      } yield result
+
+      result.fold(many(Vector.empty, root))(numberCtx(_, root))
+    }
+
+    case Modulo(lExp, rExp) => {
+      val result = for {
+        r <- loop(rExp).value
+        l <- loop(lExp).value
+        rn <- doubleValue(r)
+        ln <- doubleValue(l)
+        result <- (ln % rn).some
+      } yield result
+
+      result.fold(many(Vector.empty, root))(numberCtx(_, root))
+    }
+
+    case Union(exps) => many(exps.flatMap(exp => loop(exp).values), root)
+  }
 
   def sliceArray(slice: ArraySlice): T = {
     val targetCtx = loop(slice.target)

@@ -22,17 +22,6 @@ import com.filippodeluca.jsonpath.ast.*
 
 object GenericSolver {
 
-  def toDouble(any: Any): Option[Double] = {
-    any match {
-      case n: Int => n.toDouble.some
-      case n: Long => n.toDouble.some
-      case n: Double => n.some
-      case n: BigDecimal => n.toDouble.some
-      case n: BigInt => n.toDouble.some
-      case _ => None
-    }
-  }
-
   case class Context(values: Vector[Any], root: Any) extends Ctx[Context, Any] {
     // Returns Some only if there is only one result in the result list otherwise None
     def value: Option[Any] = if (values.size == 1) {
@@ -43,6 +32,12 @@ object GenericSolver {
 
     def many(values: Vector[Any], root: Any) = Context(values, root)
     def one(value: Any, root: Any) = Context.one(value, root)
+    def current = this
+
+    def nullCtx(root: Any) = Context.one(None, root)
+    def booleanCtx(value: Boolean, root: Any) = Context.one(value, root)
+    def stringCtx(value: String, root: Any) = Context.one(value, root)
+    def numberCtx(value: Double, root: Any) = Context.one(value, root)
 
     def arrayValue(any: Any): Option[Seq[Any]] = any match {
       case arr: Seq[Any] => arr.some
@@ -66,6 +61,17 @@ object GenericSolver {
       case _ => None
     }
 
+    def doubleValue(any: Any): Option[Double] = {
+      any match {
+        case n: Int => n.toDouble.some
+        case n: Long => n.toDouble.some
+        case n: Double => n.some
+        case n: BigDecimal => n.toDouble.some
+        case n: BigInt => n.toDouble.some
+        case _ => None
+      }
+    }
+
     // According to https://www.sitepoint.com/javascript-truthy-falsy/
     def booleanValue(any: Any): Boolean = any match {
       case n: Int => n != 0
@@ -78,188 +84,6 @@ object GenericSolver {
       case s: String => !s.isEmpty
       case false => false
       case _ => true
-    }
-
-    override def loop(exp: Exp): Context = exp match {
-      case NullLiteral => Context.one(None, root)
-      case StringLiteral(value) => Context.one(value, root)
-      case BooleanLiteral(value) => Context.one(value, root)
-      case NumberLiteral(value) => Context.one(value, root)
-      case This => this
-      case Root => Context.one(root, root)
-
-      case prop: Property => getProperty(prop)
-      case wildcard: Wildcard => getWildcard(wildcard)
-      case idx: ArrayIndex => getArrayIndex(idx)
-      case slice: ArraySlice => sliceArray(slice)
-      case filter: Filter => applyFilter(filter)
-      // TODO think about associativity and how to handle operators on multiple results
-
-      case Eq(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield left == right
-
-        Context.one(result.getOrElse(false), root)
-
-      case Gt(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          (left, right) match {
-            case (l: String, r: String) => l > r
-            case (left, right) =>
-              (toDouble(left), toDouble(right)) match {
-                case (Some(l), Some(r)) => l > r
-                case _ => false
-              }
-          }
-        }
-
-        Context.one(result.getOrElse(false), root)
-
-      case Gte(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          (left, right) match {
-            case (l: String, r: String) => l >= r
-            case (left, right) =>
-              (toDouble(left), toDouble(right)) match {
-                case (Some(l), Some(r)) => l >= r
-                case _ => false
-              }
-          }
-        }
-
-        Context.one(result.getOrElse(false), root)
-
-      case Lt(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          (left, right) match {
-            case (l: String, r: String) => l < r
-            case (left, right) =>
-              (toDouble(left), toDouble(right)) match {
-                case (Some(l), Some(r)) => l < r
-                case _ => false
-              }
-          }
-        }
-
-        Context.one(result.getOrElse(false), root)
-
-      case Lte(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          (left, right) match {
-            case (l: String, r: String) => l <= r
-            case (left, right) =>
-              (toDouble(left), toDouble(right)) match {
-                case (Some(l), Some(r)) => l <= r
-                case _ => false
-              }
-          }
-        }
-
-        Context.one(result.getOrElse(false), root)
-
-      case Not(exp) =>
-        val result = for {
-          value <- loop(exp).value.map(booleanValue)
-        } yield !value
-
-        Context(result.toVector, root)
-
-      case Or(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value.map(booleanValue)
-          right <- loop(rightExp).value.map(booleanValue)
-        } yield left || right
-
-        Context.one(result.getOrElse(false), root)
-
-      case And(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value.map(booleanValue)
-          right <- loop(rightExp).value.map(booleanValue)
-        } yield left && right
-
-        Context.one(result.getOrElse(false), root)
-
-      case In(itemExp, setExp) =>
-        val result = for {
-          set <- loop(setExp).value
-          item <- loop(itemExp).value
-        } yield {
-          set match {
-            case seq: Seq[Any] => seq.contains(item)
-            case obj: Map[Any, Any] => obj.contains(item)
-            case _ => false
-          }
-        }
-
-        Context(result.toVector, root)
-
-      case Plus(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- toDouble(r)
-          ln <- toDouble(l)
-          result <- Some(ln + rn)
-        } yield result
-        Context(result.toVector, root)
-
-      case Minus(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- toDouble(r)
-          ln <- toDouble(l)
-          result <- Some(ln - rn)
-        } yield result
-        Context(result.toVector, root)
-
-      case Times(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- toDouble(r)
-          ln <- toDouble(l)
-          result <- Some(ln * rn)
-        } yield result
-        Context(result.toVector, root)
-
-      case DividedBy(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- toDouble(r)
-          ln <- toDouble(l)
-          result <- Some(ln / rn)
-        } yield result
-        Context(result.toVector, root)
-
-      case Modulo(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- toDouble(r)
-          ln <- toDouble(l)
-          result <- Some(ln % rn)
-        } yield result
-        Context(result.toVector, root)
-
-      case Union(exps) =>
-        Context(exps.flatMap(exp => loop(exp).values), root)
     }
   }
 

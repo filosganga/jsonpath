@@ -37,6 +37,13 @@ object CirceSolver {
 
     def one(value: Json, root: Json) = Context.one(value, root)
     def many(values: Vector[Json], root: Json) = Context(values, root)
+    def current = this
+
+    def nullCtx(root: Json) = Context.one(Json.Null, root)
+    def stringCtx(value: String, root: Json) = Context.one(Json.fromString(value), root)
+    def booleanCtx(value: Boolean, root: Json) = Context.one(Json.fromBoolean(value), root)
+    def numberCtx(value: Double, root: Json) =
+      Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))), root)
 
     def arrayValue(json: Json): Option[Seq[Json]] = json.asArray
     def arrayToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
@@ -49,9 +56,9 @@ object CirceSolver {
         .orElse(json.asBoolean.map(_.toString))
     }
 
-    def intValue(json: Json): Option[Int] = {
-      json.asNumber.flatMap(_.toInt)
-    }
+    def intValue(json: Json): Option[Int] = json.asNumber.flatMap(_.toInt)
+
+    def doubleValue(json: Json): Option[Double] = json.asNumber.map(_.toDouble)
 
     // According to https://www.sitepoint.com/javascript-truthy-falsy/
     def booleanValue(json: Json): Boolean = {
@@ -64,164 +71,6 @@ object CirceSolver {
         _ => false
       )
       !isFalse
-    }
-
-    def loop(exp: ast.Exp): Context = exp match {
-      case NullLiteral => Context.one(Json.Null, root)
-      case StringLiteral(value) => Context.one(Json.fromString(value), root)
-      case BooleanLiteral(value) => Context.one(Json.fromBoolean(value), root)
-      case NumberLiteral(value) =>
-        Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))), root)
-      case This => this
-      case Root => Context.one(root, root)
-
-      case prop: Property => getProperty(prop)
-      case wildcard: Wildcard => getWildcard(wildcard)
-      case idx: ArrayIndex => getArrayIndex(idx)
-      case slice: ArraySlice => sliceArray(slice)
-
-      case filter: Filter => applyFilter(filter)
-
-      // TODO think about associativity and how to handle operators on multiple results
-
-      case Eq(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield left == right
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case Gt(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          left.asString.exists(l => right.asString.exists(r => l > r)) ||
-          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble > r.toDouble))
-        }
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case Gte(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          left.asString.exists(l => right.asString.exists(r => l > r)) ||
-          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble >= r.toDouble))
-        }
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case Lt(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          left.asString.exists(l => right.asString.exists(r => l > r)) ||
-          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble < r.toDouble))
-        }
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case Lte(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value
-          right <- loop(rightExp).value
-        } yield {
-          left.asString.exists(l => right.asString.exists(r => l > r)) ||
-          left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble <= r.toDouble))
-        }
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case Not(exp) =>
-        val result = for {
-          value <- loop(exp).value.map(booleanValue)
-        } yield Json.fromBoolean(!value)
-
-        Context(result.toVector, root)
-
-      case Or(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value.map(booleanValue)
-          right <- loop(rightExp).value.map(booleanValue)
-        } yield left || right
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case And(leftExp, rightExp) =>
-        val result = for {
-          left <- loop(leftExp).value.map(booleanValue)
-          right <- loop(rightExp).value.map(booleanValue)
-        } yield left && right
-
-        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
-
-      case In(itemExp, setExp) =>
-        val result = for {
-          set <- loop(setExp).value
-          item <- loop(itemExp).value
-        } yield {
-          set.asArray.exists(_.contains(item)) ||
-          item.asString.exists(key => set.asObject.exists(jso => jso.contains(key)))
-        }
-
-        Context(result.map(Json.fromBoolean).toVector, root)
-
-      case Plus(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- r.asNumber
-          ln <- l.asNumber
-          result <- Json.fromDouble(ln.toDouble + rn.toDouble)
-        } yield result
-        Context(result.toVector, root)
-
-      case Minus(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- r.asNumber
-          ln <- l.asNumber
-          result <- Json.fromDouble(ln.toDouble - rn.toDouble)
-        } yield result
-        Context(result.toVector, root)
-
-      case Times(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- r.asNumber
-          ln <- l.asNumber
-          result <- Json.fromDouble(ln.toDouble * rn.toDouble)
-        } yield result
-        Context(result.toVector, root)
-
-      case DividedBy(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- r.asNumber
-          ln <- l.asNumber
-          result <- Json.fromDouble(ln.toDouble / rn.toDouble)
-        } yield result
-        Context(result.toVector, root)
-
-      case Modulo(lExp, rExp) =>
-        val result = for {
-          r <- loop(rExp).value
-          l <- loop(lExp).value
-          rn <- r.asNumber
-          ln <- l.asNumber
-          result <- Json.fromDouble(ln.toDouble % rn.toDouble)
-        } yield result
-        Context(result.toVector, root)
-
-      case Union(exps) =>
-        Context(exps.flatMap(exp => loop(exp).values), root)
     }
   }
 
