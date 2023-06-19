@@ -25,20 +25,13 @@ import com.filippodeluca.jsonpath.ast.*
 
 object CirceSolver {
   // TODO Shall we use ADT instead?
-  case class Context(values: Vector[Json]) {
+  case class Context(values: Vector[Json], root: Json) {
     // Returns Some only if there is only one result in the result list otherwise None
     def value: Option[Json] = if (values.size == 1) {
       values.headOption
     } else {
       None
     }
-  }
-
-  object Context {
-    def one(value: Json) = Context(Vector(value))
-  }
-
-  def solve(exp: ast.Exp, source: Json): Vector[Json] = {
 
     def stringValue(json: Json): Option[String] = {
       json.asString
@@ -63,38 +56,40 @@ object CirceSolver {
       !isFalse
     }
 
-    def loop(exp: ast.Exp, current: Context, root: Json): Context = exp match {
-      case NullLiteral => Context.one(Json.Null)
-      case StringLiteral(value) => Context.one(Json.fromString(value))
-      case BooleanLiteral(value) => Context.one(Json.fromBoolean(value))
+    def loop(exp: ast.Exp): Context = exp match {
+      case NullLiteral => Context.one(Json.Null, root)
+      case StringLiteral(value) => Context.one(Json.fromString(value), root)
+      case BooleanLiteral(value) => Context.one(Json.fromBoolean(value), root)
       case NumberLiteral(value) =>
-        Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))))
-      case This => current
-      case Root => Context.one(root)
+        Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))), root)
+      case This => this
+      case Root => Context.one(root, root)
 
       case Property(nameExp, target) =>
-        val targetCtx = loop(target, current, root)
+        val targetCtx = loop(target)
         val results = targetCtx.values.mapFilter { target =>
           // TODO Should id fail if the value is an array?
-          val name = loop(nameExp, Context.one(target), root).value.flatMap(stringValue)
+          val newTargetCtx = Context.one(target, root)
+          val name = newTargetCtx.loop(nameExp).value.flatMap(stringValue)
           name
             .flatMap { name =>
               target.asObject.flatMap(obj => obj(name))
             }
         }
-        Context(results)
+        Context(results, root)
       case Wildcard(target) =>
-        val results = loop(target, current, root).values.mapFilter { target =>
+        val results = loop(target).values.mapFilter { target =>
           target.asArray.orElse(target.asObject.map(_.values.toVector))
         }.flatten
 
-        Context(results)
+        Context(results, root)
 
       case ArrayIndex(indexExp, targetExp) =>
-        val targetCtx = loop(targetExp, current, root)
+        val targetCtx = loop(targetExp)
         val results = targetCtx.values.mapFilter { target =>
           // TODO Should id fail if the value is an array?
-          val index = loop(indexExp, Context.one(target), root).value.flatMap(intValue)
+          val newTargetCtx = Context.one(target, root)
+          val index = newTargetCtx.loop(indexExp).value.flatMap(intValue)
           index
             .flatMap { index =>
               target.asArray
@@ -109,16 +104,16 @@ object CirceSolver {
             }
 
         }
-        Context(results)
+        Context(results, root)
 
       case ArraySlice(startExp, endExp, stepExp, targetExp) =>
-        val targetCtx = loop(targetExp, current, root)
+        val targetCtx = loop(targetExp)
         val results = targetCtx.values.mapFilter { target =>
           target.asArray.map { array =>
-            val targetCtx = Context.one(target)
-            val start = loop(startExp, targetCtx, root).value.flatMap(intValue)
-            val end = loop(endExp, targetCtx, root).value.flatMap(intValue)
-            val step = loop(stepExp, targetCtx, root).value.flatMap(intValue).getOrElse(1)
+            val targetCtx = Context.one(target, root)
+            val start = targetCtx.loop(startExp).value.flatMap(intValue)
+            val end = targetCtx.loop(endExp).value.flatMap(intValue)
+            val step = targetCtx.loop(stepExp).value.flatMap(intValue).getOrElse(1)
 
             val range = if (step > 0) {
               start.map(x => if (x < 0) array.size + x else x).getOrElse(0) until end
@@ -144,15 +139,16 @@ object CirceSolver {
           }
         }
 
-        Context(results)
+        Context(results, root)
 
       case Filter(predicate, target) =>
-        val targetCtx = loop(target, current, root)
+        val targetCtx = loop(target)
         val results = targetCtx.values.flatMap { target =>
           target.asArray.fold {
             // TODO Should id fail if the value is an array?
+            val newTargetCtx = Context.one(target, root)
             val predicateValue =
-              loop(predicate, Context.one(target), root).value.map(booleanValue).getOrElse(false)
+              newTargetCtx.loop(predicate).value.map(booleanValue).getOrElse(false)
             if (predicateValue) {
               Vector(target)
             } else {
@@ -161,154 +157,162 @@ object CirceSolver {
           } { targets =>
             targets.filter { item =>
               // TODO Should id fail if the value is an array?
-              loop(predicate, Context.one(item), root).value.map(booleanValue).getOrElse(false)
+              val itemCtx = Context.one(item, root)
+              itemCtx.loop(predicate).value.map(booleanValue).getOrElse(false)
             }
           }
         }
-        Context(results)
+        Context(results, root)
 
       // TODO think about associativity and how to handle operators on multiple results
 
       case Eq(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value
-          right <- loop(rightExp, current, root).value
+          left <- loop(leftExp).value
+          right <- loop(rightExp).value
         } yield left == right
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case Gt(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value
-          right <- loop(rightExp, current, root).value
+          left <- loop(leftExp).value
+          right <- loop(rightExp).value
         } yield {
           left.asString.exists(l => right.asString.exists(r => l > r)) ||
           left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble > r.toDouble))
         }
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case Gte(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value
-          right <- loop(rightExp, current, root).value
+          left <- loop(leftExp).value
+          right <- loop(rightExp).value
         } yield {
           left.asString.exists(l => right.asString.exists(r => l > r)) ||
           left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble >= r.toDouble))
         }
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case Lt(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value
-          right <- loop(rightExp, current, root).value
+          left <- loop(leftExp).value
+          right <- loop(rightExp).value
         } yield {
           left.asString.exists(l => right.asString.exists(r => l > r)) ||
           left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble < r.toDouble))
         }
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case Lte(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value
-          right <- loop(rightExp, current, root).value
+          left <- loop(leftExp).value
+          right <- loop(rightExp).value
         } yield {
           left.asString.exists(l => right.asString.exists(r => l > r)) ||
           left.asNumber.exists(l => right.asNumber.exists(r => l.toDouble <= r.toDouble))
         }
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case Not(exp) =>
         val result = for {
-          value <- loop(exp, current, root).value.map(booleanValue)
+          value <- loop(exp).value.map(booleanValue)
         } yield Json.fromBoolean(!value)
 
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case Or(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value.map(booleanValue)
-          right <- loop(rightExp, current, root).value.map(booleanValue)
+          left <- loop(leftExp).value.map(booleanValue)
+          right <- loop(rightExp).value.map(booleanValue)
         } yield left || right
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case And(leftExp, rightExp) =>
         val result = for {
-          left <- loop(leftExp, current, root).value.map(booleanValue)
-          right <- loop(rightExp, current, root).value.map(booleanValue)
+          left <- loop(leftExp).value.map(booleanValue)
+          right <- loop(rightExp).value.map(booleanValue)
         } yield left && right
 
-        Context.one(result.fold(Json.False)(Json.fromBoolean))
+        Context.one(result.fold(Json.False)(Json.fromBoolean), root)
 
       case In(itemExp, setExp) =>
         val result = for {
-          set <- loop(setExp, current, root).value
-          item <- loop(itemExp, current, root).value
+          set <- loop(setExp).value
+          item <- loop(itemExp).value
         } yield {
           set.asArray.exists(_.contains(item)) ||
           item.asString.exists(key => set.asObject.exists(jso => jso.contains(key)))
         }
 
-        Context(result.map(Json.fromBoolean).toVector)
+        Context(result.map(Json.fromBoolean).toVector, root)
 
       case Plus(lExp, rExp) =>
         val result = for {
-          r <- loop(rExp, current, root).value
-          l <- loop(lExp, current, root).value
+          r <- loop(rExp).value
+          l <- loop(lExp).value
           rn <- r.asNumber
           ln <- l.asNumber
           result <- Json.fromDouble(ln.toDouble + rn.toDouble)
         } yield result
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case Minus(lExp, rExp) =>
         val result = for {
-          r <- loop(rExp, current, root).value
-          l <- loop(lExp, current, root).value
+          r <- loop(rExp).value
+          l <- loop(lExp).value
           rn <- r.asNumber
           ln <- l.asNumber
           result <- Json.fromDouble(ln.toDouble - rn.toDouble)
         } yield result
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case Times(lExp, rExp) =>
         val result = for {
-          r <- loop(rExp, current, root).value
-          l <- loop(lExp, current, root).value
+          r <- loop(rExp).value
+          l <- loop(lExp).value
           rn <- r.asNumber
           ln <- l.asNumber
           result <- Json.fromDouble(ln.toDouble * rn.toDouble)
         } yield result
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case DividedBy(lExp, rExp) =>
         val result = for {
-          r <- loop(rExp, current, root).value
-          l <- loop(lExp, current, root).value
+          r <- loop(rExp).value
+          l <- loop(lExp).value
           rn <- r.asNumber
           ln <- l.asNumber
           result <- Json.fromDouble(ln.toDouble / rn.toDouble)
         } yield result
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case Modulo(lExp, rExp) =>
         val result = for {
-          r <- loop(rExp, current, root).value
-          l <- loop(lExp, current, root).value
+          r <- loop(rExp).value
+          l <- loop(lExp).value
           rn <- r.asNumber
           ln <- l.asNumber
           result <- Json.fromDouble(ln.toDouble % rn.toDouble)
         } yield result
-        Context(result.toVector)
+        Context(result.toVector, root)
 
       case Union(exps) =>
-        Context(exps.flatMap(exp => loop(exp, current, root).values))
+        Context(exps.flatMap(exp => loop(exp).values), root)
     }
+  }
 
-    loop(exp, Context.one(source), source).values
+  object Context {
+    def one(value: Json, root: Json) = Context(Vector(value), root)
+  }
+
+  def solve(exp: ast.Exp, source: Json): Vector[Json] = {
+    val sourceCtx = Context.one(source, source)
+    sourceCtx.loop(exp).values
   }
 }
