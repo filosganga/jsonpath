@@ -80,28 +80,7 @@ object CirceSolver {
       case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceArray(slice)
 
-      case Filter(predicate, target) =>
-        val targetCtx = loop(target)
-        val results = targetCtx.values.flatMap { target =>
-          target.asArray.fold {
-            // TODO Should id fail if the value is an array?
-            val newTargetCtx = Context.one(target, root)
-            val predicateValue =
-              newTargetCtx.loop(predicate).value.map(booleanValue).getOrElse(false)
-            if (predicateValue) {
-              Vector(target)
-            } else {
-              Vector.empty
-            }
-          } { targets =>
-            targets.filter { item =>
-              // TODO Should id fail if the value is an array?
-              val itemCtx = Context.one(item, root)
-              itemCtx.loop(predicate).value.map(booleanValue).getOrElse(false)
-            }
-          }
-        }
-        Context(results, root)
+      case filter: Filter => applyFilter(filter)
 
       // TODO think about associativity and how to handle operators on multiple results
 

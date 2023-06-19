@@ -36,6 +36,7 @@ abstract class Ctx[T <: Ctx[T, A], A] {
 
   def intValue(a: A): Option[Int]
   def stringValue(a: A): Option[String]
+  def booleanValue(a: A): Boolean
 
   def sliceArray(slice: ArraySlice): T = {
     val targetCtx = loop(slice.target)
@@ -116,6 +117,30 @@ abstract class Ctx[T <: Ctx[T, A], A] {
       arrayValue(target).orElse(mapValue(target).map(_.values))
     }.flatten
 
+    many(results, root)
+  }
+
+  def applyFilter(filter: Filter) = {
+    val targetCtx = loop(filter.target)
+    val results = targetCtx.values.flatMap { target =>
+      arrayValue(target).fold {
+        // TODO Should id fail if the value is an array?
+        val newTargetCtx = one(target, root)
+        val predicateValue =
+          newTargetCtx.loop(filter.predicate).value.map(booleanValue).getOrElse(false)
+        if (predicateValue) {
+          Vector(target)
+        } else {
+          Vector.empty
+        }
+      } { targets =>
+        targets.filter { item =>
+          // TODO Should id fail if the value is an array?
+          val itemCtx = one(item, root)
+          itemCtx.loop(filter.predicate).value.map(booleanValue).getOrElse(false)
+        }
+      }
+    }
     many(results, root)
   }
 

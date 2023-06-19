@@ -90,39 +90,9 @@ object GenericSolver {
 
       case prop: Property => getProperty(prop)
       case wildcard: Wildcard => getWildcard(wildcard)
-
       case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceArray(slice)
-
-      case Filter(predicate, target) =>
-        val targetCtx = loop(target)
-        val results = targetCtx.values.flatMap { target =>
-          val seq: Seq[Any] = target match {
-            case seq: Seq[Any] => seq
-            case _ => {
-              // TODO Should id fail if the value is an array?
-              val newTargetCtx = Context.one(target, root)
-              val predicateValue = newTargetCtx
-                .loop(predicate)
-                .value
-                .map(booleanValue)
-                .getOrElse(false)
-              if (predicateValue) {
-                Vector(target)
-              } else {
-                Vector.empty
-              }
-            }
-          }
-
-          seq.filter { item =>
-            // TODO Should id fail if the value is an array?
-            val itemCtx = Context.one(item, root)
-            itemCtx.loop(predicate).value.map(booleanValue).getOrElse(false)
-          }
-        }
-        Context(results, root)
-
+      case filter: Filter => applyFilter(filter)
       // TODO think about associativity and how to handle operators on multiple results
 
       case Eq(leftExp, rightExp) =>
