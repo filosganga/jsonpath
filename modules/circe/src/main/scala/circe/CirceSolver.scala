@@ -22,16 +22,24 @@ import cats.syntax.all.*
 import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
+import com.filippodeluca.jsonpath.generic.Ctx
+import cats.instances.seq
 
 object CirceSolver {
   // TODO Shall we use ADT instead?
-  case class Context(values: Vector[Json], root: Json) {
+  case class Context(values: Vector[Json], root: Json) extends Ctx[Context, Json] {
     // Returns Some only if there is only one result in the result list otherwise None
     def value: Option[Json] = if (values.size == 1) {
       values.headOption
     } else {
       None
     }
+
+    def one(value: Json, root: Json) = Context.one(value, root)
+    def many(values: Vector[Json], root: Json) = Context(values, root)
+
+    def sequenceValue(json: Json): Option[Seq[Json]] = json.asArray
+    def sequenceToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
 
     def stringValue(json: Json): Option[String] = {
       json.asString
@@ -106,40 +114,7 @@ object CirceSolver {
         }
         Context(results, root)
 
-      case ArraySlice(startExp, endExp, stepExp, targetExp) =>
-        val targetCtx = loop(targetExp)
-        val results = targetCtx.values.mapFilter { target =>
-          target.asArray.map { array =>
-            val targetCtx = Context.one(target, root)
-            val start = targetCtx.loop(startExp).value.flatMap(intValue)
-            val end = targetCtx.loop(endExp).value.flatMap(intValue)
-            val step = targetCtx.loop(stepExp).value.flatMap(intValue).getOrElse(1)
-
-            val range = if (step > 0) {
-              start.map(x => if (x < 0) array.size + x else x).getOrElse(0) until end
-                .map(x => if (x < 0) array.size + x else x)
-                .getOrElse(
-                  array.length
-                ) by step
-            } else {
-              (start.map(x => if (x < 0) array.size + x else x).getOrElse(array.size)) until end
-                .map(x => if (x < 0) array.size + x else x)
-                .getOrElse(-1) by step
-            }
-
-            Console.err.println(
-              s"start: ${start}, end: ${end}, step: ${step}, range: ${range.toVector}"
-            )
-
-            Json.fromValues(range.toVector.mapFilter { idx =>
-              val value = array.get(idx.toLong)
-
-              value
-            })
-          }
-        }
-
-        Context(results, root)
+      case slice: ArraySlice => sliceSequence(slice)
 
       case Filter(predicate, target) =>
         val targetCtx = loop(target)

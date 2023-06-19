@@ -130,7 +130,7 @@ lazy val circe =
   project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
     // .crossType(CrossType.Pure)
     .in(file("modules/circe"))
-    .dependsOn(ast)
+    .dependsOn(ast, generic)
     // See https://github.com/portable-scala/sbt-crossproject/issues/102
     // .jsConfigure(
     //   _.dependsOn(core.jvm)

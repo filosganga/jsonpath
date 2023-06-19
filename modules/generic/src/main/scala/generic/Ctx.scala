@@ -31,12 +31,13 @@ abstract class Ctx[T <: Ctx[T, A], A] {
 
   def intValue(a: A): Option[Int]
   def sequenceValue(a: A): Option[Seq[A]]
+  def sequenceToValue(seq: Seq[A]): A
 
-  def sliceSequence(slice: ArraySlice) = {
+  def sliceSequence(slice: ArraySlice): T = {
     val targetCtx = loop(slice.target)
     val results = targetCtx.values.map { target =>
       val seq = sequenceValue(target)
-      seq.fold(Vector.empty[A]) { seq =>
+      seq.fold(sequenceToValue(Vector.empty[A])) { seq =>
         val targetCtx = one(target, root)
         val start = targetCtx.loop(slice.start).value.flatMap(intValue)
         val end = targetCtx.loop(slice.end).value.flatMap(intValue)
@@ -58,12 +59,16 @@ abstract class Ctx[T <: Ctx[T, A], A] {
           s"start: ${start}, end: ${end}, step: ${step}, range: ${range.toVector}"
         )
 
-        range.toVector.mapFilter { idx =>
-          seq.get(idx.toLong)
-        }
+        sequenceToValue(
+          range.toVector
+            .mapFilter { idx =>
+              seq.get(idx.toLong)
+            }
+        )
       }
-    }.flatten
+    }
 
     many(results, root)
   }
+
 }

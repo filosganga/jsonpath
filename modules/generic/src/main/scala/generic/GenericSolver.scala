@@ -48,6 +48,7 @@ object GenericSolver {
       case seq: Seq[Any] => seq.some
       case _ => None
     }
+    def sequenceToValue(seq: Seq[Any]): Any = seq.asInstanceOf[Any]
 
     def stringValue(any: Any): Option[String] = any.toString.some
 
