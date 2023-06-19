@@ -35,8 +35,8 @@ abstract class Ctx[T <: Ctx[T, A], A](val values: Vector[A], val root: A) {
   def booleanCtx(value: Boolean, root: A): T
   def numberCtx(value: Double, root: A): T
 
-  def arrayValue(a: A): Option[Seq[A]]
-  def arrayToValue(seq: Seq[A]): A
+  def arrayValue(a: A): Option[Vector[A]]
+  def arrayToValue(arr: Vector[A]): A
 
   def mapValue(a: A): Option[Map[String, A]]
   def propertyKey(a: A): Option[String]

@@ -17,8 +17,6 @@
 package com.filippodeluca.jsonpath
 package circe
 
-import cats.syntax.all.*
-
 import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
@@ -27,7 +25,7 @@ object CirceSolver {
   // TODO Shall we use ADT instead?
   class Context(values: Vector[Json], root: Json) extends Ctx[Context, Json](values, root) {
     def one(value: Json, root: Json) = Context.one(value, root)
-    def many(values: Vector[Json], root: Json) = Context(values, root)
+    def many(values: Vector[Json], root: Json) = new Context(values, root)
     def current = this
 
     def nullCtx(root: Json) = Context.one(Json.Null, root)
@@ -36,8 +34,8 @@ object CirceSolver {
     def numberCtx(value: Double, root: Json) =
       Context.one(Json.fromDouble(value).getOrElse(Json.fromBigDecimal(BigDecimal(value))), root)
 
-    def arrayValue(json: Json): Option[Seq[Json]] = json.asArray
-    def arrayToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
+    def arrayValue(json: Json): Option[Vector[Json]] = json.asArray
+    def arrayToValue(arr: Vector[Json]): Json = Json.fromValues(arr)
 
     def mapValue(json: Json): Option[Map[String, Json]] = json.asObject.map(_.toMap)
 
@@ -68,7 +66,7 @@ object CirceSolver {
   }
 
   object Context {
-    def one(value: Json, root: Json) = Context(Vector(value), root)
+    def one(value: Json, root: Json) = new Context(Vector(value), root)
   }
 
   def solve(exp: ast.Exp, source: Json): Vector[Json] = {
