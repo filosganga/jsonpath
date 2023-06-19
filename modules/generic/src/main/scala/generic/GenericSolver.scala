@@ -44,11 +44,11 @@ object GenericSolver {
     def many(values: Vector[Any], root: Any) = Context(values, root)
     def one(value: Any, root: Any) = Context.one(value, root)
 
-    def sequenceValue(any: Any): Option[Seq[Any]] = any match {
-      case seq: Seq[Any] => seq.some
+    def arrayValue(any: Any): Option[Seq[Any]] = any match {
+      case arr: Seq[Any] => arr.some
       case _ => None
     }
-    def sequenceToValue(seq: Seq[Any]): Any = seq.asInstanceOf[Any]
+    def arrayToValue(arr: Seq[Any]): Any = arr.asInstanceOf[Any]
 
     def mapValue(any: Any): Option[Map[String, Any]] = any match {
       case map: Map[String, Any] => map.some
@@ -101,7 +101,7 @@ object GenericSolver {
         Context(results, root)
 
       case idx: ArrayIndex => getArrayIndex(idx)
-      case slice: ArraySlice => sliceSequence(slice)
+      case slice: ArraySlice => sliceArray(slice)
 
       case Filter(predicate, target) =>
         val targetCtx = loop(target)

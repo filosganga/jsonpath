@@ -38,8 +38,8 @@ object CirceSolver {
     def one(value: Json, root: Json) = Context.one(value, root)
     def many(values: Vector[Json], root: Json) = Context(values, root)
 
-    def sequenceValue(json: Json): Option[Seq[Json]] = json.asArray
-    def sequenceToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
+    def arrayValue(json: Json): Option[Seq[Json]] = json.asArray
+    def arrayToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
 
     def mapValue(json: Json): Option[Map[String, Json]] = json.asObject.map(_.toMap)
 
@@ -84,7 +84,7 @@ object CirceSolver {
         Context(results, root)
 
       case idx: ArrayIndex => getArrayIndex(idx)
-      case slice: ArraySlice => sliceSequence(slice)
+      case slice: ArraySlice => sliceArray(slice)
 
       case Filter(predicate, target) =>
         val targetCtx = loop(target)

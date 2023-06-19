@@ -29,33 +29,33 @@ abstract class Ctx[T <: Ctx[T, A], A] {
 
   def loop(exp: Exp): T
 
-  def sequenceValue(a: A): Option[Seq[A]]
-  def sequenceToValue(seq: Seq[A]): A
+  def arrayValue(a: A): Option[Seq[A]]
+  def arrayToValue(seq: Seq[A]): A
 
   def mapValue(a: A): Option[Map[String, A]]
 
   def intValue(a: A): Option[Int]
   def stringValue(a: A): Option[String]
 
-  def sliceSequence(slice: ArraySlice): T = {
+  def sliceArray(slice: ArraySlice): T = {
     val targetCtx = loop(slice.target)
     val results = targetCtx.values.map { target =>
-      val seq = sequenceValue(target)
-      seq.fold(sequenceToValue(Vector.empty[A])) { seq =>
+      val arr = arrayValue(target)
+      arr.fold(arrayToValue(Vector.empty[A])) { arr =>
         val targetCtx = one(target, root)
         val start = targetCtx.loop(slice.start).value.flatMap(intValue)
         val end = targetCtx.loop(slice.end).value.flatMap(intValue)
         val step = targetCtx.loop(slice.step).value.flatMap(intValue).getOrElse(1)
 
         val range = if (step > 0) {
-          start.map(x => if (x < 0) seq.size + x else x).getOrElse(0) until end
-            .map(x => if (x < 0) seq.size + x else x)
+          start.map(x => if (x < 0) arr.size + x else x).getOrElse(0) until end
+            .map(x => if (x < 0) arr.size + x else x)
             .getOrElse(
-              seq.length
+              arr.length
             ) by step
         } else {
-          (start.map(x => if (x < 0) seq.size + x else x).getOrElse(seq.size)) until end
-            .map(x => if (x < 0) seq.size + x else x)
+          (start.map(x => if (x < 0) arr.size + x else x).getOrElse(arr.size)) until end
+            .map(x => if (x < 0) arr.size + x else x)
             .getOrElse(-1) by step
         }
 
@@ -63,10 +63,10 @@ abstract class Ctx[T <: Ctx[T, A], A] {
           s"start: ${start}, end: ${end}, step: ${step}, range: ${range.toVector}"
         )
 
-        sequenceToValue(
+        arrayToValue(
           range.toVector
             .mapFilter { idx =>
-              seq.get(idx.toLong)
+              arr.get(idx.toLong)
             }
         )
       }
@@ -97,7 +97,7 @@ abstract class Ctx[T <: Ctx[T, A], A] {
       val index = newTargetCtx.loop(idx.index).value.flatMap(intValue)
       index
         .flatMap { index =>
-          sequenceValue(target)
+          arrayValue(target)
             .flatMap { arr =>
               if (index < 0) {
                 arr.get((arr.length + index).toLong)
