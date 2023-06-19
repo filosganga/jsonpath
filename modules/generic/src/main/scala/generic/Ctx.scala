@@ -19,10 +19,13 @@ package com.filippodeluca.jsonpath.generic
 import cats.syntax.all.*
 import com.filippodeluca.jsonpath.ast.*
 
-abstract class Ctx[T <: Ctx[T, A], A] {
-  def root: A
-  def value: Option[A]
-  def values: Vector[A]
+abstract class Ctx[T <: Ctx[T, A], A](val values: Vector[A], val root: A) {
+  // Returns Some only if there is only one result in the result list otherwise None
+  def value: Option[A] = if (values.size == 1) {
+    values.headOption
+  } else {
+    None
+  }
 
   def one(value: A, root: A): T
   def many(values: Vector[A], root: A): T

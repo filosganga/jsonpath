@@ -23,18 +23,10 @@ import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
 import com.filippodeluca.jsonpath.generic.Ctx
-import cats.instances.seq
 
 object CirceSolver {
   // TODO Shall we use ADT instead?
-  case class Context(values: Vector[Json], root: Json) extends Ctx[Context, Json] {
-    // Returns Some only if there is only one result in the result list otherwise None
-    def value: Option[Json] = if (values.size == 1) {
-      values.headOption
-    } else {
-      None
-    }
-
+  class Context(values: Vector[Json], root: Json) extends Ctx[Context, Json](values, root) {
     def one(value: Json, root: Json) = Context.one(value, root)
     def many(values: Vector[Json], root: Json) = Context(values, root)
     def current = this

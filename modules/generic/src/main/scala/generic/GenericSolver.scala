@@ -22,14 +22,7 @@ import com.filippodeluca.jsonpath.ast.*
 
 object GenericSolver {
 
-  case class Context(values: Vector[Any], root: Any) extends Ctx[Context, Any] {
-    // Returns Some only if there is only one result in the result list otherwise None
-    def value: Option[Any] = if (values.size == 1) {
-      values.headOption
-    } else {
-      None
-    }
-
+  class Context(values: Vector[Any], root: Any) extends Ctx[Context, Any](values, root) {
     def many(values: Vector[Any], root: Any) = Context(values, root)
     def one(value: Any, root: Any) = Context.one(value, root)
     def current = this
