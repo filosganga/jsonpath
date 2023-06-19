@@ -37,6 +37,7 @@ abstract class Ctx[T <: Ctx[T, A], A] {
   def arrayToValue(seq: Seq[A]): A
 
   def mapValue(a: A): Option[Map[String, A]]
+  def propertyKey(a: A): Option[String]
 
   def intValue(a: A): Option[Int]
   def doubleValue(a: A): Option[Double]
@@ -260,7 +261,7 @@ abstract class Ctx[T <: Ctx[T, A], A] {
     val results = targetCtx.values.mapFilter { target =>
       // TODO Should id fail if the value is an array?
       val newTargetCtx = one(target, root)
-      val name = newTargetCtx.loop(prop.name).value.flatMap(stringValue)
+      val name = newTargetCtx.loop(prop.name).value.flatMap(propertyKey)
       name
         .flatMap { name =>
           mapValue(target).flatMap(obj => obj.get(name))

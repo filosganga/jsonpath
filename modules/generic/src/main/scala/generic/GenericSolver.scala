@@ -50,7 +50,12 @@ object GenericSolver {
       case _ => None
     }
 
-    def stringValue(any: Any): Option[String] = any.toString.some
+    def propertyKey(any: Any): Option[String] = any.toString.some
+
+    def stringValue(any: Any): Option[String] = any match {
+      case s: String => s.some
+      case _ => None
+    }
 
     def intValue(any: Any): Option[Int] = any match {
       case n: Int => n.toInt.some

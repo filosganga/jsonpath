@@ -50,11 +50,13 @@ object CirceSolver {
 
     def mapValue(json: Json): Option[Map[String, Json]] = json.asObject.map(_.toMap)
 
-    def stringValue(json: Json): Option[String] = {
+    def propertyKey(json: Json): Option[String] = {
       json.asString
         .orElse(json.asNumber.map(_.toDouble.toString))
         .orElse(json.asBoolean.map(_.toString))
     }
+
+    def stringValue(json: Json): Option[String] = json.asString
 
     def intValue(json: Json): Option[Int] = json.asNumber.flatMap(_.toInt)
 
