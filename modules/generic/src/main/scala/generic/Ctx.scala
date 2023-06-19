@@ -29,9 +29,13 @@ abstract class Ctx[T <: Ctx[T, A], A] {
 
   def loop(exp: Exp): T
 
-  def intValue(a: A): Option[Int]
   def sequenceValue(a: A): Option[Seq[A]]
   def sequenceToValue(seq: Seq[A]): A
+
+  def mapValue(a: A): Option[Map[String, A]]
+
+  def intValue(a: A): Option[Int]
+  def stringValue(a: A): Option[String]
 
   def sliceSequence(slice: ArraySlice): T = {
     val targetCtx = loop(slice.target)
@@ -68,6 +72,20 @@ abstract class Ctx[T <: Ctx[T, A], A] {
       }
     }
 
+    many(results, root)
+  }
+
+  def getProperty(prop: Property) = {
+    val targetCtx = loop(prop.target)
+    val results = targetCtx.values.mapFilter { target =>
+      // TODO Should id fail if the value is an array?
+      val newTargetCtx = one(target, root)
+      val name = newTargetCtx.loop(prop.name).value.flatMap(stringValue)
+      name
+        .flatMap { name =>
+          mapValue(target).flatMap(obj => obj.get(name))
+        }
+    }
     many(results, root)
   }
 

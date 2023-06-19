@@ -50,6 +50,11 @@ object GenericSolver {
     }
     def sequenceToValue(seq: Seq[Any]): Any = seq.asInstanceOf[Any]
 
+    def mapValue(any: Any): Option[Map[String, Any]] = any match {
+      case map: Map[String, Any] => map.some
+      case _ => None
+    }
+
     def stringValue(any: Any): Option[String] = any.toString.some
 
     def intValue(any: Any): Option[Int] = any match {
@@ -83,21 +88,7 @@ object GenericSolver {
       case This => this
       case Root => Context.one(root, root)
 
-      case Property(nameExp, target) =>
-        val targetCtx = loop(target)
-        val results = targetCtx.values.mapFilter { target =>
-          // TODO Should id fail if the value is an array?
-          val newTargetCtx = Context.one(target, root)
-          val name = newTargetCtx.loop(nameExp).value.flatMap(stringValue)
-          name
-            .flatMap { name =>
-              target match {
-                case obj: Map[String, _] => obj.get(name)
-                case _ => None
-              }
-            }
-        }
-        Context(results, root)
+      case prop: Property => getProperty(prop)
       case Wildcard(target) =>
         val results = loop(target).values.mapFilter { target =>
           target match {

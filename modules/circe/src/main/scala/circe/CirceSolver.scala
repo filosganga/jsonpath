@@ -41,6 +41,8 @@ object CirceSolver {
     def sequenceValue(json: Json): Option[Seq[Json]] = json.asArray
     def sequenceToValue(seq: Seq[Json]): Json = Json.fromValues(seq)
 
+    def mapValue(json: Json): Option[Map[String, Json]] = json.asObject.map(_.toMap)
+
     def stringValue(json: Json): Option[String] = {
       json.asString
         .orElse(json.asNumber.map(_.toDouble.toString))
@@ -73,18 +75,7 @@ object CirceSolver {
       case This => this
       case Root => Context.one(root, root)
 
-      case Property(nameExp, target) =>
-        val targetCtx = loop(target)
-        val results = targetCtx.values.mapFilter { target =>
-          // TODO Should id fail if the value is an array?
-          val newTargetCtx = Context.one(target, root)
-          val name = newTargetCtx.loop(nameExp).value.flatMap(stringValue)
-          name
-            .flatMap { name =>
-              target.asObject.flatMap(obj => obj(name))
-            }
-        }
-        Context(results, root)
+      case prop: Property => getProperty(prop)
       case Wildcard(target) =>
         val results = loop(target).values.mapFilter { target =>
           target.asArray.orElse(target.asObject.map(_.values.toVector))
