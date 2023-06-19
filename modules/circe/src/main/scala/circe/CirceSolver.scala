@@ -76,13 +76,7 @@ object CirceSolver {
       case Root => Context.one(root, root)
 
       case prop: Property => getProperty(prop)
-      case Wildcard(target) =>
-        val results = loop(target).values.mapFilter { target =>
-          target.asArray.orElse(target.asObject.map(_.values.toVector))
-        }.flatten
-
-        Context(results, root)
-
+      case wildcard: Wildcard => getWildcard(wildcard)
       case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceArray(slice)
 

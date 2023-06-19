@@ -89,16 +89,7 @@ object GenericSolver {
       case Root => Context.one(root, root)
 
       case prop: Property => getProperty(prop)
-      case Wildcard(target) =>
-        val results = loop(target).values.mapFilter { target =>
-          target match {
-            case seq: Seq[_] => seq.some
-            case obj: Map[_, _] => obj.values.toVector.some
-            case _ => None
-          }
-        }.flatten
-
-        Context(results, root)
+      case wildcard: Wildcard => getWildcard(wildcard)
 
       case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceArray(slice)

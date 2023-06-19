@@ -111,4 +111,12 @@ abstract class Ctx[T <: Ctx[T, A], A] {
     many(results, root)
   }
 
+  def getWildcard(wildcard: Wildcard) = {
+    val results = loop(wildcard.target).values.mapFilter { target =>
+      arrayValue(target).orElse(mapValue(target).map(_.values))
+    }.flatten
+
+    many(results, root)
+  }
+
 }
