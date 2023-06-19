@@ -33,12 +33,20 @@ object GenericSolver {
     }
   }
 
-  case class Context(values: Vector[Any], root: Any) {
+  case class Context(values: Vector[Any], root: Any) extends Ctx[Context, Any] {
     // Returns Some only if there is only one result in the result list otherwise None
     def value: Option[Any] = if (values.size == 1) {
       values.headOption
     } else {
       None
+    }
+
+    def many(values: Vector[Any], root: Any) = Context(values, root)
+    def one(value: Any, root: Any) = Context.one(value, root)
+
+    def sequenceValue(any: Any): Option[Seq[Any]] = any match {
+      case seq: Seq[Any] => seq.some
+      case _ => None
     }
 
     def stringValue(any: Any): Option[String] = any.toString.some
@@ -66,7 +74,7 @@ object GenericSolver {
       case _ => true
     }
 
-    def loop(exp: Exp): Context = exp match {
+    override def loop(exp: Exp): Context = exp match {
       case NullLiteral => Context.one(None, root)
       case StringLiteral(value) => Context.one(value, root)
       case BooleanLiteral(value) => Context.one(value, root)
@@ -123,41 +131,7 @@ object GenericSolver {
         }
         Context(results, root)
 
-      case ArraySlice(startExp, endExp, stepExp, targetExp) =>
-        val targetCtx = loop(targetExp)
-        val results = targetCtx.values.map { target =>
-          target match {
-            case seq: Seq[Any] => {
-              val targetCtx = Context.one(target, root)
-              val start = targetCtx.loop(startExp).value.flatMap(intValue)
-              val end = targetCtx.loop(endExp).value.flatMap(intValue)
-              val step = targetCtx.loop(stepExp).value.flatMap(intValue).getOrElse(1)
-
-              val range = if (step > 0) {
-                start.map(x => if (x < 0) seq.size + x else x).getOrElse(0) until end
-                  .map(x => if (x < 0) seq.size + x else x)
-                  .getOrElse(
-                    seq.length
-                  ) by step
-              } else {
-                (start.map(x => if (x < 0) seq.size + x else x).getOrElse(seq.size)) until end
-                  .map(x => if (x < 0) seq.size + x else x)
-                  .getOrElse(-1) by step
-              }
-
-              Console.err.println(
-                s"start: ${start}, end: ${end}, step: ${step}, range: ${range.toVector}"
-              )
-
-              range.toVector.mapFilter { idx =>
-                seq.get(idx.toLong)
-              }
-            }
-            case _ => Vector.empty[Any]
-          }
-        }.flatten
-
-        Context(results, root)
+      case slice: ArraySlice => sliceSequence(slice)
 
       case Filter(predicate, target) =>
         val targetCtx = loop(target)
