@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.filippodeluca.jsonpath.generic
+package com.filippodeluca.jsonpath.ast
 
 import cats.syntax.all.*
-import com.filippodeluca.jsonpath.ast.*
 
 abstract class Ctx[T <: Ctx[T, A], A](val values: Vector[A], val root: A) {
   // Returns Some only if there is only one result in the result list otherwise None

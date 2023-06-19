@@ -22,7 +22,6 @@ import cats.syntax.all.*
 import io.circe.Json
 
 import com.filippodeluca.jsonpath.ast.*
-import com.filippodeluca.jsonpath.generic.Ctx
 
 object CirceSolver {
   // TODO Shall we use ADT instead?
