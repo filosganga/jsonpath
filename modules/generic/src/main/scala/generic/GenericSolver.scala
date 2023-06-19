@@ -100,29 +100,7 @@ object GenericSolver {
 
         Context(results, root)
 
-      case ArrayIndex(indexExp, targetExp) =>
-        val targetCtx = loop(targetExp)
-        val results = targetCtx.values.mapFilter { target =>
-          // TODO Should id fail if the value is an array?
-          val newTargetCtx = Context.one(target, root)
-          val index = newTargetCtx.loop(indexExp).value.flatMap(intValue)
-          index
-            .flatMap { index =>
-              target match {
-                // TODO: CirceSolver used index.toLong when getting, why?
-                case seq: Seq[_] =>
-                  if (index < 0) {
-                    seq.get((seq.length + index))
-                  } else {
-                    seq.get(index)
-                  }
-                case _ => None
-              }
-            }
-
-        }
-        Context(results, root)
-
+      case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceSequence(slice)
 
       case Filter(predicate, target) =>

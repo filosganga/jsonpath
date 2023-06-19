@@ -89,4 +89,26 @@ abstract class Ctx[T <: Ctx[T, A], A] {
     many(results, root)
   }
 
+  def getArrayIndex(idx: ArrayIndex) = {
+    val targetCtx = loop(idx.target)
+    val results = targetCtx.values.mapFilter { target =>
+      // TODO Should id fail if the value is an array?
+      val newTargetCtx = one(target, root)
+      val index = newTargetCtx.loop(idx.index).value.flatMap(intValue)
+      index
+        .flatMap { index =>
+          sequenceValue(target)
+            .flatMap { arr =>
+              if (index < 0) {
+                arr.get((arr.length + index).toLong)
+              } else {
+                arr.get(index.toLong)
+              }
+            }
+        }
+
+    }
+    many(results, root)
+  }
+
 }

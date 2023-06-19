@@ -83,28 +83,7 @@ object CirceSolver {
 
         Context(results, root)
 
-      case ArrayIndex(indexExp, targetExp) =>
-        val targetCtx = loop(targetExp)
-        val results = targetCtx.values.mapFilter { target =>
-          // TODO Should id fail if the value is an array?
-          val newTargetCtx = Context.one(target, root)
-          val index = newTargetCtx.loop(indexExp).value.flatMap(intValue)
-          index
-            .flatMap { index =>
-              target.asArray
-                .flatMap { arr =>
-                  if (index < 0) {
-                    arr.get((arr.length + index).toLong)
-                  } else {
-                    arr.get(index.toLong)
-                  }
-
-                }
-            }
-
-        }
-        Context(results, root)
-
+      case idx: ArrayIndex => getArrayIndex(idx)
       case slice: ArraySlice => sliceSequence(slice)
 
       case Filter(predicate, target) =>
