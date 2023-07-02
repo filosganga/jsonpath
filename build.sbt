@@ -2,13 +2,13 @@ val circeV = "0.14.5"
 val catsParseV = "0.3.9"
 val catsV = "2.9.0"
 val catsEffectV = "3.4.8"
-val munitV = "1.0.0-M7"
+val munitV = "1.0.0-M8"
 val munitCatsEffectV = "2.0.0-M3"
 val literallyV = "1.1.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "3.2.2"
+ThisBuild / scalaVersion := "3.3.0"
 ThisBuild / crossScalaVersions ++= List("2.13.10")
 ThisBuild / organization := "com.filippodeluca"
 ThisBuild / organizationName := "Filippo De Luca"
