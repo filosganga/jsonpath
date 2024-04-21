@@ -1,9 +1,15 @@
 val circeV = "0.14.6"
+
 val catsParseV = "1.0.0"
+
 val catsV = "2.10.0"
+
 val catsEffectV = "3.4.8"
+
 val munitV = "1.0.0-M8"
+
 val munitCatsEffectV = "2.0.0-M3"
+
 val literallyV = "1.1.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -46,12 +52,8 @@ lazy val noPublishSettings = List(
 
 lazy val publishSettings = List(
   pomIncludeRepository := { _ => false },
-  publishTo := {
-    val nexus = "https://s01.oss.sonatype.org/"
-    if (isSnapshot.value)
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
+  publishTo := sonatypePublishToBundle.value
+  sonatypeCredentialHost := "s01.oss.sonatype.org"
   publishMavenStyle := true,
   credentials ++= {
     for {
