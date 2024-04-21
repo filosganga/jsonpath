@@ -17,9 +17,6 @@
 package com.filippodeluca.jsonpath
 package parser
 
-import cats.parse.*
-import cats.syntax.all.*
-
 import munit.Location
 
 import com.filippodeluca.jsonpath.ast.*
