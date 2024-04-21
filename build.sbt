@@ -40,6 +40,23 @@ ThisBuild / scmInfo := Some(
     "scm:git@github.com:filosganga/jsonpath.git"
   )
 )
+
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishTo := sonatypePublishToBundle.value
+ThisBuild / publishMavenStyle := true,
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / publishMavenStyle := true
+ThisBuild / credentials ++= {
+  for {
+    usr <- sys.env.get("SONATYPE_USER")
+    password <- sys.env.get("SONATYPE_PASS")
+  } yield Credentials(
+    "Sonatype Nexus Repository Manager",
+    "s01.oss.sonatype.org",
+    usr,
+    password
+  )
+}.toList
 ThisBuild / versionScheme := Some("semver-spec")
 
 lazy val noPublishSettings = List(
@@ -50,24 +67,6 @@ lazy val noPublishSettings = List(
   publish / skip := true
 )
 
-lazy val publishSettings = List(
-  pomIncludeRepository := { _ => false },
-  publishTo := sonatypePublishToBundle.value,
-  sonatypeCredentialHost := "s01.oss.sonatype.org",
-  publishMavenStyle := true,
-  credentials ++= {
-    for {
-      usr <- sys.env.get("SONATYPE_USER")
-      password <- sys.env.get("SONATYPE_PASS")
-    } yield Credentials(
-      "Sonatype Nexus Repository Manager",
-      "s01.oss.sonatype.org",
-      usr,
-      password
-    )
-  }.toList
-)
-
 val scalacOptionsSettings = List(
   scalacOptions -= "-Xfatal-warnings",
   scalacOptions += "-Xsource:3"
@@ -76,10 +75,10 @@ val scalacOptionsSettings = List(
 lazy val root = project
   .in(file("."))
   .settings(
-    name := "jsonpath"
+    name := "jsonpath",
+    publish / skip := true
   )
   .aggregate(ast, parser, literal, circe)
-  .settings(noPublishSettings)
 
 lazy val ast =
   project // (JSPlatform, JVMPlatform /* cats-parse native does not exist  , NativePlatform */ )
@@ -87,7 +86,6 @@ lazy val ast =
     .settings(
       name := "jsonpath-ast",
       scalacOptionsSettings,
-      publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-core" % catsV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -103,7 +101,6 @@ lazy val parser =
     .settings(
       name := "jsonpath-parser",
       scalacOptionsSettings,
-      publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -119,7 +116,6 @@ lazy val literal =
     .settings(
       name := "jsonpath-literal",
       scalacOptionsSettings,
-      publishSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "literally" % literallyV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -143,7 +139,6 @@ lazy val circe =
     .settings(
       name := "jsonpath-circe",
       scalacOptionsSettings,
-      publishSettings,
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
         "io.circe" %%% "circe-parser" % circeV,
