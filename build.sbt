@@ -43,7 +43,7 @@ ThisBuild / scmInfo := Some(
 
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishTo := sonatypePublishToBundle.value
-ThisBuild / publishMavenStyle := true,
+ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / publishMavenStyle := true
 ThisBuild / credentials ++= {
