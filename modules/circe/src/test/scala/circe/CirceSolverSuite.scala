@@ -21,9 +21,6 @@ import cats.syntax.all.*
 
 import io.circe.Json
 import io.circe.literal.*
-import io.circe.testing.instances.*
-
-import org.scalacheck.Prop.*
 
 import com.filippodeluca.jsonpath.ast.*
 

@@ -6,16 +6,16 @@ val catsV = "2.10.0"
 
 val catsEffectV = "3.4.8"
 
-val munitV = "1.0.0-M8"
+val munitV = "1.0.0-M12"
 
-val munitCatsEffectV = "2.0.0-M3"
+val munitCatsEffectV = "2.0.0-M5"
 
 val literallyV = "1.1.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "3.3.0"
-ThisBuild / crossScalaVersions ++= List("2.13.10")
+ThisBuild / scalaVersion := "3.3.3"
+ThisBuild / crossScalaVersions ++= List("2.13.13")
 ThisBuild / organization := "com.filippodeluca"
 ThisBuild / organizationName := "Filippo De Luca"
 
@@ -52,8 +52,8 @@ lazy val noPublishSettings = List(
 
 lazy val publishSettings = List(
   pomIncludeRepository := { _ => false },
-  publishTo := sonatypePublishToBundle.value
-  sonatypeCredentialHost := "s01.oss.sonatype.org"
+  publishTo := sonatypePublishToBundle.value,
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
   publishMavenStyle := true,
   credentials ++= {
     for {

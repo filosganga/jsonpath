@@ -16,8 +16,6 @@
 
 package com.filippodeluca.jsonpath
 
-import scala.util.Try
-
 import org.typelevel.literally.Literally
 
 import com.filippodeluca.jsonpath.ast.Exp
