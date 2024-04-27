@@ -28,17 +28,11 @@ jobs:
       - name: test
         id: test
         run: sbt "+Test/test"
-      - name: Test Report
-        uses: dorny/test-reporter@v1.6.0
-        if: (success() || failure()) && steps.build.conclusion == 'success'
+      - uses: actions/upload-artifact@v3
+        if: (success() || failure()  && steps.build.conclusion == 'success')
         with:
-          list-suites: "all"
-          list-tests: "all"
-          max-annotations: 10
-          fail-on-error: true
-          name: unit-tests-report
+          name: unit-tests-result
           path: "**/target/test-reports/*.xml"
-          reporter: java-junit
       - uses: alehechka/upload-tartifact@v2
         with:
           name: targets
