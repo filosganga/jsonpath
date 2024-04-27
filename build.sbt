@@ -42,10 +42,16 @@ ThisBuild / scmInfo := Some(
 )
 
 ThisBuild / pomIncludeRepository := { _ => false }
-ThisBuild / publishTo := sonatypePublishToBundle.value
 ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / publishMavenStyle := true
+ThisBuild / sonatypePublishToBundle := {
+  if (isSnapshot.value) {
+    Some(sonatypeSnapshotResolver.value)
+  } else {
+    Some(Resolver.file("sonatype-local-bundle", sonatypeBundleDirectory.value))
+  }
+}
+ThisBuild / publishTo := sonatypePublishToBundle.value
 ThisBuild / credentials ++= {
   for {
     usr <- sys.env.get("SONATYPE_USER")
@@ -58,14 +64,6 @@ ThisBuild / credentials ++= {
   )
 }.toList
 ThisBuild / versionScheme := Some("semver-spec")
-
-lazy val noPublishSettings = List(
-  publish := {},
-  publishLocal := {},
-  publishTo := None,
-  publishArtifact := false,
-  publish / skip := true
-)
 
 val scalacOptionsSettings = List(
   scalacOptions -= "-Xfatal-warnings",

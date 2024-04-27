@@ -19,7 +19,7 @@ jobs:
         with:
           artifact: unit-tests-result
           name: unit-tests-report
-          path: "*.xml"
+          path: "**/*.xml"
           list-suites: "all"
           list-tests: "all"
           max-annotations: 10
