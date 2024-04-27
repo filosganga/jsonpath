@@ -44,13 +44,6 @@ ThisBuild / scmInfo := Some(
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / sonatypePublishToBundle := {
-  if (isSnapshot.value) {
-    Some(sonatypeSnapshotResolver.value)
-  } else {
-    Some(Resolver.file("sonatype-local-bundle", sonatypeBundleDirectory.value))
-  }
-}
 ThisBuild / publishTo := sonatypePublishToBundle.value
 ThisBuild / credentials ++= {
   for {
@@ -70,6 +63,17 @@ val scalacOptionsSettings = List(
   scalacOptions += "-Xsource:3"
 )
 
+val sonatypeSettings = List(
+  // Setting it on ThisBuild does not have any effect
+  sonatypePublishToBundle := {
+    if (isSnapshot.value) {
+      Some(sonatypeSnapshotResolver.value)
+    } else {
+      Some(Resolver.file("sonatype-local-bundle", sonatypeBundleDirectory.value))
+    }
+  }
+)
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -84,6 +88,7 @@ lazy val ast =
     .settings(
       name := "jsonpath-ast",
       scalacOptionsSettings,
+      sonatypeSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-core" % catsV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -99,6 +104,7 @@ lazy val parser =
     .settings(
       name := "jsonpath-parser",
       scalacOptionsSettings,
+      sonatypeSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -114,6 +120,7 @@ lazy val literal =
     .settings(
       name := "jsonpath-literal",
       scalacOptionsSettings,
+      sonatypeSettings,
       libraryDependencies ++= List(
         "org.typelevel" %%% "literally" % literallyV,
         "org.scalameta" %%% "munit" % munitV % Test,
@@ -137,6 +144,7 @@ lazy val circe =
     .settings(
       name := "jsonpath-circe",
       scalacOptionsSettings,
+      sonatypeSettings,
       libraryDependencies ++= List(
         "io.circe" %%% "circe-core" % circeV,
         "io.circe" %%% "circe-parser" % circeV,
