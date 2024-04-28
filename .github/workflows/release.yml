@@ -13,12 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: "0"
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: "21"
           distribution: "temurin"
-      - uses: coursier/cache-action@v6
+      - name: Restore dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+          key: sbt-${{ hashFiles('**/*.sbt', 'project/build.properties') }}
       - name: build
         id: build
         run: sbt "+scalafmtCheckAll;+headerCheckAll;+compile;+Test/compile"

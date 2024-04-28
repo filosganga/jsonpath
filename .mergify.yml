@@ -1,0 +1,36 @@
+pull_request_rules:
+  - name: label dependabot's PRs
+    conditions:
+      - author=dependabot[bot]
+    actions:
+      label:
+        add:
+          - automerge
+        remove: []
+  - name: label scala-steward's PRs
+    conditions:
+      - author=filosganga-scala-steward[bot]
+      - or:
+          - label=semver-spec-patch
+          - label=semver-spec-minor
+    actions:
+      label:
+        add:
+          - automerge
+        remove: []
+  - name: approve automerge PRs
+    conditions:
+      - label=automerge
+      - status-success=unit-tests-report
+      - status-success=integration-tests-report
+    actions:
+      review:
+        type: APPROVE
+  - name: merge dependencies PRs
+    conditions:
+      - label=automerge
+      - status-success=unit-tests-report
+      - status-success=integration-tests-report
+    actions:
+      merge:
+        method: rebase
