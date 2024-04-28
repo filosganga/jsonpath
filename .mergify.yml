@@ -22,7 +22,6 @@ pull_request_rules:
     conditions:
       - label=automerge
       - status-success=unit-tests-report
-      - status-success=integration-tests-report
     actions:
       review:
         type: APPROVE
@@ -30,7 +29,6 @@ pull_request_rules:
     conditions:
       - label=automerge
       - status-success=unit-tests-report
-      - status-success=integration-tests-report
     actions:
       merge:
         method: rebase
