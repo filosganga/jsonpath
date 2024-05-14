@@ -10,7 +10,7 @@ val munitV = "1.0.0-M12"
 
 val munitCatsEffectV = "2.0.0-M5"
 
-val literallyV = "1.1.0"
+val literallyV = "1.2.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
