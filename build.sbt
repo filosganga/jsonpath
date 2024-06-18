@@ -1,4 +1,4 @@
-val circeV = "0.14.7"
+val circeV = "0.14.8"
 
 val catsParseV = "1.0.0"
 
