@@ -8,7 +8,7 @@ val catsEffectV = "3.4.8"
 
 val munitV = "1.0.1"
 
-val munitCatsEffectV = "2.0.0-M5"
+val munitCatsEffectV = "2.0.0"
 
 val literallyV = "1.2.0"
 
