@@ -1,7 +1,9 @@
 # Yet another JSONPath implementation
+
 This JSONPath implementation in composable, such as `foo` or `1 < 2` or `$.foo == $.bar` are all valid JSONPath expressions. The solver returns a Vector of possible match, an empty vectors if nothing matches.
 
 ## Installation
+
 First, make sure to replace `<latestVersion>` with the actual latest version of the library you want to use. You can find the latest version number in the project's documentation or on its Maven or SBT repository page.
 
 Once you have the latest version number, add the following lines to your `build.sbt` file:
@@ -73,52 +75,63 @@ Additionally, the AST-based approach used by this implementation makes it easier
 This is a significant advantage over other JSONPath implementations that evaluate the query directly from a string each time it is needed, which can be slower and less efficient.
 
 ## The AST
+
 Under the hood there is an AST to model the expression, that can them be solved by several model. At this point in time only circe is availabel, in the circe module and CirceSolver object.
 
 ### AST nodes
 
 #### `Root`
+
 Represents the root of the JSON document.
 
 Example: `$`
 
 #### `This`
+
 Represents the current context of the JSON document.
 
 Example: `@`
 
 #### `StringLiteral`
+
 Represents a string literal.
 
 Example: `'foo'`
 
 #### `NumberLiteral`
+
 Represents a number literal.
 
 Example: `42`
 
 #### `BooleanLiteral`
+
 Represents a boolean literal.
 
 Example: true
 
 #### `NullLiteral`
-Represents an absent liternal 
+
+Represents an absent liternal
 
 #### `Property(name, target)`
+
 Represents the `name` property access on the `target`
 
 Example: `$.foo`
 
 #### `ArrayIndex(index, target)`
+
 Represents an array index access. The ArrayIndex node contains an Exp node representing the index to access.
 
 Example: `$[0]`
 
 #### `ArraySlice(start, end, step, target)`
+
 Represents an array slice. The ArraySlice node contains three Exp nodes representing the start, the end and the step of the slice. It is inspired to python array slicing.
 
-Examples: 
+Examples:
+
 - $[1:3]
 - $[1:3:1]
 - $[:3]
@@ -126,17 +139,18 @@ Examples:
 - $[-5:-3]
 
 #### `Wildcard(target)`
+
 Represents a wildcard access. When a JSONPath traverse this node, it will become a projection: each following selector is applied to each result of the previous selector.
 
 Example: `$.store.book[*].title` will return the titles of all the books in the store
 
 #### `Filter(exp, target)`
+
 Represents a filter expression. The Filter node contains an Exp node that represents the filter expression, and a Context node that represents the context to apply the filter to.
 
 Example: `$[?(@.age > 30)]`
 
-TODO Add operators, union, projection, function call 
-
+TODO Add operators, union, projection, function call
 
 ### AST translation
 
