@@ -8,8 +8,8 @@ on:
   pull_request:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' || !startsWith( github.ref, 'refs/heads/release/' ) }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith( github.ref, 'refs/heads/release/' ) }}
 
 jobs:
   test:
@@ -42,15 +42,7 @@ jobs:
           key: sbt-${{ hashFiles('**/*.sbt', 'project/build.properties') }}
       - name: build
         id: build
-        run: sbt "+scalafmtCheckAll;+headerCheckAll;+compile;+Test/compile"
-      - name: test
-        id: test
-        run: sbt "+Test/test"
-      - uses: actions/upload-artifact@v4
-        if: (success() || failure()  && steps.build.conclusion == 'success')
-        with:
-          name: unit-tests-result
-          path: "**/target/test-reports/*.xml"
+        run: sbt "+scalafmtCheckAll;+headerCheckAll;+compile;+Test/test"
       - uses: alehechka/upload-tartifact@v2
         with:
           name: targets
