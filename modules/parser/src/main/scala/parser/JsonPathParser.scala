@@ -138,12 +138,17 @@ object JsonPathParser {
         }
       }.withContext("arraySliceP")
 
+      val filterP: Parser[Exp => Exp] = {
+        (questionMarkP.surroundedBy(whitespacesP0) *> parensExpP).map(filterExp => Filter(filterExp, _))
+      }.withContext("filterP")
+
       (openSquareBraceP *> (
         Parser.oneOf(
           List(
             starP.as(Wildcard(_)),
             stringLiteralP.map(name => Property(name, _)),
             arraySliceP,
+            filterP,
             numberLiteralP.map(index => ArrayIndex(index, _)),
             parensExpP.map(name => Property(name, _))
           )
