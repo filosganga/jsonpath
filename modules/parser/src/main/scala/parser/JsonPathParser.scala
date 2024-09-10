@@ -139,7 +139,9 @@ object JsonPathParser {
       }.withContext("arraySliceP")
 
       val filterP: Parser[Exp => Exp] = {
-        (questionMarkP.surroundedBy(whitespacesP0) *> parensExpP).map(filterExp => Filter(filterExp, _))
+        (questionMarkP.surroundedBy(whitespacesP0) *> parensExpP).map(filterExp =>
+          Filter(filterExp, _)
+        )
       }.withContext("filterP")
 
       (openSquareBraceP *> (

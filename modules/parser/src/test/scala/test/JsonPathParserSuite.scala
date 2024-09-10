@@ -273,10 +273,10 @@ class JsonPathParserSuite extends munit.FunSuite {
   shouldParse(
     "$[?(@.this == @.that)]",
     Filter(
-     Eq(
-       Property(StringLiteral("this"), This),
-       Property(StringLiteral("that"), This)
-     ),
+      Eq(
+        Property(StringLiteral("this"), This),
+        Property(StringLiteral("that"), This)
+      ),
       Root
     )
   )
