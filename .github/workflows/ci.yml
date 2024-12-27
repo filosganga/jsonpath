@@ -21,6 +21,7 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+      - uses: sbt/setup-sbt@v1
       - name: Restore dependencies
         id: cache-restore
         uses: actions/cache/restore@v4
@@ -61,6 +62,7 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+      - uses: sbt/setup-sbt@v1
       - name: Restore dependencies
         id: cache-restore
         uses: actions/cache/restore@v4

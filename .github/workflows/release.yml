@@ -20,6 +20,7 @@ jobs:
         with:
           java-version: "21"
           distribution: "temurin"
+      - uses: sbt/setup-sbt@v1
       - name: Restore dependencies
         uses: actions/cache/restore@v4
         with:
