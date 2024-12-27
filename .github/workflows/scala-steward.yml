@@ -8,6 +8,11 @@ jobs:
   scala-steward:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+      - uses: sbt/setup-sbt@v1
       - uses: scala-steward-org/scala-steward-action@v2
         with:
           github-app-id: ${{ secrets.APP_ID }}
