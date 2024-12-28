@@ -8,6 +8,8 @@ val catsEffectV = "3.4.8"
 
 val munitV = "1.0.0"
 
+val munitScalacheckV = "1.0.0"
+
 val munitCatsEffectV = "2.0.0"
 
 val literallyV = "1.2.0"
@@ -92,7 +94,7 @@ lazy val ast =
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-core" % catsV,
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitScalacheckV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
@@ -108,7 +110,7 @@ lazy val parser =
       libraryDependencies ++= List(
         "org.typelevel" %%% "cats-parse" % catsParseV,
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitScalacheckV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
@@ -124,7 +126,7 @@ lazy val literal =
       libraryDependencies ++= List(
         "org.typelevel" %%% "literally" % literallyV,
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitScalacheckV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
@@ -153,7 +155,7 @@ lazy val circe =
       ),
       libraryDependencies ++= List(
         "org.scalameta" %%% "munit" % munitV % Test,
-        "org.scalameta" %%% "munit-scalacheck" % munitV % Test,
+        "org.scalameta" %%% "munit-scalacheck" % munitScalacheckV % Test,
         "org.typelevel" %%% "munit-cats-effect" % munitCatsEffectV % Test
       )
     )
