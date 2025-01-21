@@ -2,7 +2,7 @@ val circeV = "0.14.10"
 
 val catsParseV = "1.1.0"
 
-val catsV = "2.12.0"
+val catsV = "2.13.0"
 
 val catsEffectV = "3.4.8"
 
