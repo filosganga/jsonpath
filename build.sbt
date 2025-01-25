@@ -8,7 +8,7 @@ val catsEffectV = "3.4.8"
 
 val munitV = "1.1.0"
 
-val munitScalacheckV = "1.0.0"
+val munitScalacheckV = "1.1.0"
 
 val munitCatsEffectV = "2.0.0"
 
