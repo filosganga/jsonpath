@@ -20,4 +20,4 @@ jobs:
           github-app-key: ${{ secrets.APP_PRIVATE_KEY }}
           github-app-auth-only: true
           branches: main
-          other-args: "--add-labels"
+          # other-args: "--add-labels"
