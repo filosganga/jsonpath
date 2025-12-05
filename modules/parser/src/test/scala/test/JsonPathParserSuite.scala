@@ -119,6 +119,20 @@ class JsonPathParserSuite extends munit.FunSuite {
   )
 
   shouldParse(
+    """@.foo["bar"].baz""",
+    Property(
+      StringLiteral("baz"),
+      Property(
+        StringLiteral("bar"),
+        Property(
+          StringLiteral("foo"),
+          This
+        )
+      )
+    )
+  )
+
+  shouldParse(
     "@.foo[('bar')].baz",
     Property(
       StringLiteral("baz"),

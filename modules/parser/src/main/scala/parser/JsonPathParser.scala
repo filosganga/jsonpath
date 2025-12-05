@@ -45,12 +45,20 @@ object JsonPathParser {
   val openParenP: Parser[Unit] = Parser.char('(')
   val closeParenP: Parser[Unit] = Parser.char(')')
   val singleQuoteP: Parser[Unit] = Parser.char('\'')
+  val doubleQuoteP: Parser[Unit] = Parser.char('\"')
   val whitespaceP: Parser[Unit] = Parser.charIn(' ', '\t').void
   val whitespacesP: Parser[Unit] = whitespaceP.rep(1).void
   val whitespacesP0: Parser0[Unit] = whitespaceP.rep0.void
 
-  val stringLiteralP: Parser[StringLiteral] =
+  val singleQuotedP: Parser[StringLiteral] =
     (singleQuoteP *> Parser.until(singleQuoteP) <* singleQuoteP).map(StringLiteral.apply)
+
+  val doubleQuotedP: Parser[StringLiteral] =
+    (doubleQuoteP *> Parser.until(doubleQuoteP) <* doubleQuoteP).map(StringLiteral.apply)
+
+  val stringLiteralP: Parser[StringLiteral] = singleQuotedP
+
+  val nameSelectorP: Parser[StringLiteral] = singleQuotedP.orElse(doubleQuotedP)
 
   val numberLiteralP: Parser[NumberLiteral] = {
     val zeroP = Parser.char('0').as(0)
@@ -148,7 +156,7 @@ object JsonPathParser {
         Parser.oneOf(
           List(
             starP.as(Wildcard(_)),
-            stringLiteralP.map(name => Property(name, _)),
+            nameSelectorP.map(name => Property(name, _)),
             arraySliceP,
             filterP,
             numberLiteralP.map(index => ArrayIndex(index, _)),
