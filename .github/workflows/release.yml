@@ -53,5 +53,5 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
       - run: sbt "+publishSigned; sonatypeBundleRelease"
         env:
-          SONATYPE_USER: ${{ secrets.SONATYPE_USER }}
+          SONATYPE_USER: ${{ vars.SONATYPE_USER }}
           SONATYPE_PASS: ${{ secrets.SONATYPE_PASS }}
