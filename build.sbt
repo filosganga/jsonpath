@@ -45,15 +45,15 @@ ThisBuild / scmInfo := Some(
 
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishMavenStyle := true
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / publishTo := sonatypePublishToBundle.value
+ThisBuild / sonatypeCredentialHost := xerial.sbt.Sonatype.sonatypeCentralHost
+ThisBuild / publishTo := sonatypeCentralPublishToBundle.value
 ThisBuild / credentials ++= {
   for {
     usr <- sys.env.get("SONATYPE_USER")
     password <- sys.env.get("SONATYPE_PASS")
   } yield Credentials(
     "Sonatype Nexus Repository Manager",
-    "s01.oss.sonatype.org",
+    "central.sonatype.com",
     usr,
     password
   )
@@ -67,7 +67,7 @@ val scalacOptionsSettings = List(
 
 val sonatypeSettings = List(
   // Setting it on ThisBuild does not have any effect
-  sonatypePublishToBundle := {
+  sonatypeCentralPublishToBundle := {
     if (isSnapshot.value) {
       Some(sonatypeSnapshotResolver.value)
     } else {
