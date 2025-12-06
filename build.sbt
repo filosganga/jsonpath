@@ -46,7 +46,6 @@ ThisBuild / scmInfo := Some(
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeCredentialHost := xerial.sbt.Sonatype.sonatypeCentralHost
-ThisBuild / publishTo := sonatypeCentralPublishToBundle.value
 ThisBuild / credentials ++= {
   for {
     usr <- sys.env.get("SONATYPE_USER")
@@ -67,7 +66,7 @@ val scalacOptionsSettings = List(
 
 val sonatypeSettings = List(
   // Setting it on ThisBuild does not have any effect
-  sonatypeCentralPublishToBundle := {
+  sonatypePublishToBundle := {
     if (isSnapshot.value) {
       Some(sonatypeSnapshotResolver.value)
     } else {
