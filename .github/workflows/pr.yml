@@ -1,5 +1,7 @@
 name: pr
 
+run-name: "pr-${{github.event.pull_request.number}}"
+
 on:
   pull_request:
 
