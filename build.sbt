@@ -43,6 +43,8 @@ ThisBuild / scmInfo := Some(
   )
 )
 
+ThisBuild / versionScheme := Some("semver-spec")
+ThisBuild / dynverSonatypeSnapshots := true
 ThisBuild / pomIncludeRepository := { _ => false }
 ThisBuild / publishMavenStyle := true
 ThisBuild / sonatypeCredentialHost := xerial.sbt.Sonatype.sonatypeCentralHost
@@ -58,11 +60,11 @@ ThisBuild / credentials ++= {
     password
   )
 }.toList
-ThisBuild / versionScheme := Some("semver-spec")
 
 val scalacOptionsSettings = List(
-  scalacOptions -= "-Xfatal-warnings",
-  scalacOptions += "-Xsource:3"
+  tpolecatScalacOptions ++= Set(
+    ScalacOptions.source3
+  )
 )
 
 lazy val root = project
