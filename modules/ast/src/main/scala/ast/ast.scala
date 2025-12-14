@@ -22,35 +22,38 @@ import cats.syntax.all.*
 
 object Exp {
 
-  implicit def show[T <: Exp]: Show[T] = Show.show {
-    case Root => "$"
-    case This => "@"
-    case NullLiteral => ""
-    case StringLiteral(s) => "'" ++ s ++ "'"
-    case BooleanLiteral(b) => b.toString
-    case NumberLiteral(n) if n.isValidInt => n.toInt.toString
-    case NumberLiteral(n) => n.toString
-    case Property(StringLiteral(name), target) => show"${target}.${name}"
-    case Property(name, target) => show"${target}[(${name})]"
-    case Wildcard(target) => show"${target}.*"
-    case ArrayIndex(index, target) => show"$target[$index]"
-    case ArraySlice(start, end, step, target) => show"${target}[${start}:${end}:${step}]"
-    case Filter(predicate, target) => show"$target[?($predicate)]"
-    case Eq(left, right) => show"($left) == ($right)"
-    case Gt(left, right) => show"($left) > ($right)"
-    case Gte(left, right) => show"($left) >= ($right)"
-    case Lt(left, right) => show"($left) < ($right)"
-    case Lte(left, right) => show"($left) <= ($right)"
-    case Not(exp) => show"!($exp)"
-    case And(l, r) => show"$l && $r"
-    case Or(l, r) => show"$l || $r"
-    case In(item, set) => show"$item in $set"
-    case Plus(l, r) => show"$l + $r"
-    case Minus(l, r) => show"$l - $r"
-    case Times(l, r) => show"$l * $r"
-    case DividedBy(l, r) => show"$l / $r"
-    case Modulo(l, r) => show"$l % $r"
-    case Union(exps) => show"""[${exps.map(e => e.show).mkString(",")}]"""
+  implicit def show[T <: Exp]: Show[T] = {
+    def showExp(exp: Exp): String = exp match {
+      case Root => "$"
+      case This => "@"
+      case NullLiteral => ""
+      case StringLiteral(s) => "'" ++ s ++ "'"
+      case BooleanLiteral(b) => b.toString
+      case NumberLiteral(n) if n.isValidInt => n.toInt.toString
+      case NumberLiteral(n) => n.toString
+      case Property(StringLiteral(name), target) => show"${target}.${name}"
+      case Property(name, target) => show"${target}[(${name})]"
+      case Wildcard(target) => show"${target}.*"
+      case ArrayIndex(index, target) => show"$target[$index]"
+      case ArraySlice(start, end, step, target) => show"${target}[${start}:${end}:${step}]"
+      case Filter(predicate, target) => show"$target[?($predicate)]"
+      case Eq(left, right) => show"($left) == ($right)"
+      case Gt(left, right) => show"($left) > ($right)"
+      case Gte(left, right) => show"($left) >= ($right)"
+      case Lt(left, right) => show"($left) < ($right)"
+      case Lte(left, right) => show"($left) <= ($right)"
+      case Not(exp) => show"!($exp)"
+      case And(l, r) => show"$l && $r"
+      case Or(l, r) => show"$l || $r"
+      case In(item, set) => show"$item in $set"
+      case Plus(l, r) => show"$l + $r"
+      case Minus(l, r) => show"$l - $r"
+      case Times(l, r) => show"$l * $r"
+      case DividedBy(l, r) => show"$l / $r"
+      case Modulo(l, r) => show"$l % $r"
+      case Union(exps) => s"[${exps.map(showExp).mkString(",")}]"
+    }
+    Show.show(showExp)
   }
 
 }
