@@ -23,7 +23,7 @@ import cats.syntax.all.*
 object Exp {
 
   implicit def show[T <: Exp]: Show[T] = {
-    def showExp(exp: Exp): String = exp match {
+    def loop(exp: Exp): String = exp match {
       case Root => "$"
       case This => "@"
       case NullLiteral => ""
@@ -51,9 +51,9 @@ object Exp {
       case Times(l, r) => show"$l * $r"
       case DividedBy(l, r) => show"$l / $r"
       case Modulo(l, r) => show"$l % $r"
-      case Union(exps) => s"[${exps.map(showExp).mkString(",")}]"
+      case Union(exps) => s"[${exps.map(loop).mkString(",")}]"
     }
-    Show.show(showExp)
+    Show.show(loop)
   }
 
 }
