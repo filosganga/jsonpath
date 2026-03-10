@@ -12,7 +12,7 @@ val munitV = "1.2.4"
 
 val munitScalacheckV = "1.2.0"
 
-val munitCatsEffectV = "2.1.0"
+val munitCatsEffectV = "2.2.0"
 
 val literallyV = "1.2.0"
 
