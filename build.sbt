@@ -1,6 +1,6 @@
 import org.typelevel.scalacoptions.ScalacOptions
 
-val circeV = "0.14.15"
+val circeV = "0.14.16"
 
 val catsParseV = "1.1.0"
 
