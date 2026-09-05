@@ -18,8 +18,8 @@ val literallyV = "1.2.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalaVersion := "3.8.4"
-ThisBuild / crossScalaVersions ++= List("2.13.18")
+ThisBuild / scalaVersion := "3.9.0"
+ThisBuild / crossScalaVersions ++= List("3.9.0")
 ThisBuild / organization := "com.filippodeluca"
 ThisBuild / organizationName := "Filippo De Luca"
 
