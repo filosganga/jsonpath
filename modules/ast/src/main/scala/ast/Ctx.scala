@@ -60,7 +60,7 @@ abstract class Ctx[T <: Ctx[T, A], A](val values: Vector[A], val root: A) {
     case slice: ArraySlice => sliceArray(slice)
     case filter: Filter => applyFilter(filter)
 
-    // TODO think about associativity and how to handle operators on multiple results
+    // TODO think about how to handle operators on multiple results
 
     case Eq(leftExp, rightExp) => {
       val result = for {

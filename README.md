@@ -150,7 +150,22 @@ Represents a filter expression. The Filter node contains an Exp node that repres
 
 Example: `$[?(@.age > 30)]`
 
-TODO Add operators, union, projection, function call
+#### Operators
+
+Operators are listed below, from the loosest to the tightest binding:
+
+| Operators                   | Associativity |
+|-----------------------------|---------------|
+| `\|\|`                      | left          |
+| `&&`                        | left          |
+| `==` `!=` `<` `<=` `>` `>=` | none          |
+| `+` `-`                     | left          |
+| `*` `/` `%`                 | left          |
+| `!` (prefix)                | -             |
+
+Example: `@.price * @.qty > 100 && @.inStock` = `(((@.price * @.qty) > 100) && @.inStock)`
+
+TODO Add union, projection, function call
 
 ### AST translation
 
