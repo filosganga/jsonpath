@@ -18,7 +18,6 @@ package com.filippodeluca.jsonpath
 package parser
 
 import cats.parse.*
-
 import com.filippodeluca.jsonpath.ast.*
 
 object JsonPathParser {
@@ -91,42 +90,53 @@ object JsonPathParser {
     Parser.oneOf(notOpP :: Nil)
   }
 
-  val opP: Parser[(Exp, Exp) => Exp] = {
+  type BinOp = (Exp, Exp) => Exp
 
-    val plusOpP: Parser[(Exp, Exp) => Exp] = (plusP).void.as(Plus(_, _))
-    val minusOpP: Parser[(Exp, Exp) => Exp] = (dashP).void.as(Minus(_, _))
-    val timesOpP: Parser[(Exp, Exp) => Exp] = (starP).void.as(Times(_, _))
-    val divideByOpP: Parser[(Exp, Exp) => Exp] = (slahsP).void.as(DividedBy(_, _))
-    val moduloOpP: Parser[(Exp, Exp) => Exp] = (percentP).void.as(Modulo(_, _))
+  val orOpP: Parser[BinOp] = (pipeP *> pipeP).void.as(Or(_, _))
+  val andOpP: Parser[BinOp] = (ampersandP *> ampersandP).void.as(And(_, _))
 
-    val andOpP: Parser[(Exp, Exp) => Exp] = (ampersandP *> ampersandP).void.as(And(_, _))
-    val orOpP: Parser[(Exp, Exp) => Exp] = (pipeP *> pipeP).void.as(Or(_, _))
-    val eqOpP: Parser[(Exp, Exp) => Exp] = (equalP *> equalP).void.as(Eq(_, _))
-    val neqOpP: Parser[(Exp, Exp) => Exp] = (bangP *> equalP).void.as({ (l, r) => Not(Eq(l, r)) })
-    val gtOrGteOpP: Parser[(Exp, Exp) => Exp] = (gtP *> equalP.?).map { opt =>
-      opt.fold[(Exp, Exp) => Exp](Gt.apply)(_ => Gte.apply)
+  val comparisonOpP: Parser[BinOp] = {
+    val eqOpP: Parser[BinOp] = (equalP *> equalP).void.as(Eq(_, _))
+    val neqOpP: Parser[BinOp] = (bangP *> equalP).void.as({ (l, r) => Not(Eq(l, r)) })
+    val gtOrGteOpP: Parser[BinOp] = (gtP *> equalP.?).map { opt =>
+      opt.fold[BinOp](Gt.apply)(_ => Gte.apply)
     }
-    val ltOrLteOpP: Parser[(Exp, Exp) => Exp] = (ltP *> equalP.?).map { opt =>
-      opt.fold[(Exp, Exp) => Exp](Lt.apply)(_ => Lte.apply)
+    val ltOrLteOpP: Parser[BinOp] = (ltP *> equalP.?).map { opt =>
+      opt.fold[BinOp](Lt.apply)(_ => Lte.apply)
     }
 
-    Parser.oneOf(
-      List(
-        plusOpP,
-        minusOpP,
-        timesOpP,
-        divideByOpP,
-        divideByOpP,
-        moduloOpP,
-        andOpP,
-        orOpP,
-        eqOpP,
-        neqOpP,
-        gtOrGteOpP,
-        ltOrLteOpP
-      )
-    )
+    Parser.oneOf(List(eqOpP, neqOpP, gtOrGteOpP, ltOrLteOpP))
   }
+
+  val additiveOpP: Parser[BinOp] = {
+    val plusOpP: Parser[BinOp] = (plusP).void.as(Plus(_, _))
+    val minusOpP: Parser[BinOp] = (dashP).void.as(Minus(_, _))
+
+    Parser.oneOf(List(plusOpP, minusOpP))
+  }
+
+  val multiplicativeOpP: Parser[BinOp] = {
+    val timesOpP: Parser[BinOp] = (starP).void.as(Times(_, _))
+    val divideByOpP: Parser[BinOp] = (slahsP).void.as(DividedBy(_, _))
+    val moduloOpP: Parser[BinOp] = (percentP).void.as(Modulo(_, _))
+
+    Parser.oneOf(List(timesOpP, divideByOpP, moduloOpP))
+  }
+
+  // Backtracks so that trailing whitespace not followed by an operator is left unconsumed
+  private def binOpP(opP: Parser[BinOp]): Parser[BinOp] =
+    (whitespacesP0.with1 *> opP <* whitespacesP0).backtrack
+
+  def leftAssocP(operandP: Parser[Exp], opP: Parser[BinOp]): Parser[Exp] =
+    (operandP ~ (binOpP(opP) ~ operandP).rep0).map { case (head, tail) =>
+      tail.foldLeft(head) { case (l, (op, r)) => op(l, r) }
+    }
+
+  def nonAssocP(operandP: Parser[Exp], opP: Parser[BinOp]): Parser[Exp] =
+    (operandP ~ (binOpP(opP) ~ operandP).?).map {
+      case (l, Some((op, r))) => op(l, r)
+      case (l, None) => l
+    }
 
   val expP: Parser[Exp] = {
 
@@ -201,21 +211,26 @@ object JsonPathParser {
         }
         .map(Union.apply)
 
-    (Parser
-      .oneOf(
-        List(
-          unionExpP,
-          (unaryOpP ~ (whitespacesP0 *> Parser.defer(expP))).map { case (a, b) => a(b) },
-          literalP,
-          parensExpP,
-          selectorP
-        )
-      ) ~ (whitespacesP0 *> opP ~ (whitespacesP0 *> Parser.defer(expP))).?)
-      .map {
-        case (l, Some((op, r))) => op(l, r)
-        case (l, None) => l
-      }
-      .withContext("expP")
+    val primaryP: Parser[Exp] = Parser.oneOf(
+      List(
+        unionExpP,
+        literalP,
+        parensExpP,
+        selectorP
+      )
+    )
+
+    lazy val unaryP: Parser[Exp] = Parser.defer(
+      (unaryOpP ~ (whitespacesP0 *> unaryP)).map { case (op, exp) => op(exp) } | primaryP
+    )
+
+    val multiplicativeP = leftAssocP(unaryP, multiplicativeOpP)
+    val additiveP = leftAssocP(multiplicativeP, additiveOpP)
+    val comparisonP = nonAssocP(additiveP, comparisonOpP)
+    val andP = leftAssocP(comparisonP, andOpP)
+    val orP = leftAssocP(andP, orOpP)
+
+    orP.withContext("expP")
   }
 
   def parse(str: String) = expP.parseAll(str)
